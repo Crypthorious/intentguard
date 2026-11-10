@@ -86,4 +86,12 @@ Metadata added for later builds, image digest copied from the Docker Hub tag `so
 - image: `sourcescan/cargo-near:0.23.0-rust-1.99.1`
 - image_digest: `sha256:8013f039e8005627f10ae66b5519d1a6eeeed7d7aef4b5067d5e9a86c4302fcc`
 
-The double-build result, once measured, is appended below this paragraph. A reproducible wasm embeds the git commit it was built from, so the recorded hash matches that commit only. It will not equal `a27e10243060b99ceb447ed3755a811ae70dcae0f2ff2cb322ed5a40932d0ca8`.
+Measured 2026-11-10. From a clean checkout of commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc`, `cargo near build reproducible-wasm` was run twice. Both outputs were byte-identical:
+
+| | |
+|---|---|
+| bytes | 153817 |
+| sha256 | `4c98ac5a7a89e383fce1e845cf63582ca489471adf1559bf31f8d495922cec74` |
+| base58 sha256 | `6A11akBUFFmCaj3K8Wa7uGAtyNipYk9yWyc3JPA1RJCs` |
+
+That commit is the parent of the commit that records this table. A later commit embeds a new git revision, so a rebuild of `HEAD` will not match this hash. To reproduce it, check out `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` and run the command on a clean tree with Docker. This wasm is not deployed. Testnet still serves `build/intentguard.wasm`.

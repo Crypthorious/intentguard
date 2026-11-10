@@ -55,7 +55,7 @@ python3 scripts/verify_testnet_code.py
 6. Do: `python3 scripts/verify_testnet_code.py`
    See: `bytes_equal True`, `get_owner "intentguard-5821c5.testnet"`, and `RESULT OK`.
 7. Do: `python3 guard/live_quote_check.py`
-   See: one `1Click dry quote` line and a verdict. The numbers move with the market. This is a quote, not a payment. Checked 2026-11-10: `1.0 wNEAR -> 3.639013 USDC`, deviation `+0.000%` against 1Click's own USD figures, verdict `ALLOW`.
+   See: one `1Click dry quote` line and a verdict. The numbers move with the market. This is a quote, not a payment. Checked 2026-11-10: `1.0 wNEAR -> 3.639013 USDC`, deviation `+0.000%` against 1Click's own USD figures, verdict `ALLOW`. A later run the same day, in the demo recording, was also `ALLOW` at `+0.000%`. The USDC amount moves with the market. Neither run was settled.
 
 ## How the control works
 
@@ -131,7 +131,7 @@ sha256sum target/near/intentguard.wasm
 
 The reproducible wasm is not the testnet code. The testnet code is the 2026-11-01 non-reproducible artifact `build/intentguard.wasm`, built with cargo-near 0.22.0 before this metadata existed. This repository does not redeploy.
 
-The image digest and the result of the local double build are in `DEPLOY_TESTNET.md`.
+Checked 2026-11-10: two builds of commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` both produced sha256 `4c98ac5a7a89e383fce1e845cf63582ca489471adf1559bf31f8d495922cec74` (153,817 bytes). That commit is the parent of the commit that records this paragraph. Building `HEAD` embeds a new git revision, so its wasm hash will differ. A host `non-reproducible-wasm` build the same day, Rust 1.99.1, produced a third file of 153,321 bytes. The deployed file remains the committed 153,281-byte artifact. Details are in `DEPLOY_TESTNET.md`.
 
 ## Limitations
 
