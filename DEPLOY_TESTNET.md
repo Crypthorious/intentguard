@@ -94,4 +94,4 @@ Measured 2026-11-10. From a clean checkout of commit `a3927dbd9b17dc32ad963f7f1c
 | sha256 | `4c98ac5a7a89e383fce1e845cf63582ca489471adf1559bf31f8d495922cec74` |
 | base58 sha256 | `6A11akBUFFmCaj3K8Wa7uGAtyNipYk9yWyc3JPA1RJCs` |
 
-That commit is the parent of the commit that records this table. A later commit embeds a new git revision, so a rebuild of `HEAD` will not match this hash. To reproduce it, check out `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` and run the command on a clean tree with Docker. This wasm is not deployed. Testnet still serves `build/intentguard.wasm`.
+The two matching builds used source commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc`. That result was first written down in commit `3d14cd43486cd43181bdaf8d0eb178bcd24cf0de`. Rebuilding any other commit produces a different wasm, because the git revision is embedded. To reproduce this hash, check out `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` and run the command on a clean tree with Docker. This wasm is not deployed. Testnet still serves `build/intentguard.wasm`.

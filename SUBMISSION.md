@@ -94,7 +94,7 @@ Optional extra tags from the rules, if the owner wants them: `@NearLegion` `@Nea
 
 ## What still needs a person
 
-1. Confirm the right to publish the vendored pre-hackathon modules under MIT.
+1. The vendored modules have no identified third-party license. MIT covers them only if you wrote them. If you copied any of those files from someone else, name the file and remove or replace it before the repository is public. The hackathon contact sentence does not license another person's code.
 2. Make the GitHub repository public, without force-push.
 3. Record or accept the demo video and publish one of the drafts with the video attached.
 4. Provide lead name, email, and team size.

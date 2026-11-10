@@ -89,14 +89,16 @@ The key does not authorize NEAR Intents. `settle` does not forward an intent.
 
 ## Disclosures (Q-005)
 
-Baseline, not the NEAR integration. These files are the owner's earlier rules, identified by their headers. Git history on GitHub starts with one commit on 2026-11-04, so there is no older tag to diff. The split is by path:
+Baseline, not the NEAR integration. The first commit is `83c21b6` on 2026-11-04. There is no pre-hackathon tag, so the split is by path and by the headers in the files:
 
 - `guard/intentguard_guard/vendor/risk_gate.py` and `risk_gate_config.json`. Paper/shadow pre-trade gate. The config comment describes a stage-1 perps book. `evaluate` calls `check` with an in-memory config and `market="skip"`. It does not call `fetch_market`. `fetch_market` and `check_order`, if called directly, request public Bybit linear tickers at `https://api.bybit.com/v5/market/tickers?category=linear`. The demo and `./run.sh` do not call them. Default config path is `risk_gate_config.json` (fixed 2026-11-10; the previous path `config.json` was not in the tree).
 - `guard/intentguard_guard/vendor/launch_safety.py`. Header describes shared buy-safety checks. A comment dates stricter rug filters to 2026-10-09, before the hackathon announcement on 2026-10-19. The guard calls `decide` on fixture reports. `fetch` would call public RugCheck, DexScreener, and pump.fun URLs. The demo and unit tests do not call `fetch`.
 - `guard/intentguard_guard/vendor/wallet_score.py`. Header: rule functions from `wallet_intel/server/score.py`, with the config block inlined.
 - `guard/intentguard_guard/vendor/pool_reserve.py`. Header: Uniswap V4 helpers from `rh_trader`.
 
-Those modules had no LICENSE header. They are included under `LICENSE` (MIT). The owner confirms the right to publish that prior code before the repository is made public.
+Provenance check on 2026-11-10. None of those four modules contains a copyright line, an SPDX identifier, or a LICENSE header. The headers name earlier files by path: `safety.py` / `watcher.py`, `wallet_intel/server/score.py`, and `rh_trader/rh_chain.py` plus `rh_safety.py`. The risk-gate file describes itself as a paper/shadow gate. Those paths are not published repositories. The GitHub account `Crypthorious` has one visible repository, this private `intentguard` repo. Web search for the distinctive comments (the 2026-10-09 `6W/26L` rug-filter note, `Pons graduation LP is a single wide position`, and `transfer_fed_share` together with this file's `capped at WATCH` wording) did not find this source. A GitHub code search for `6W/26L` returned unrelated win/loss notes, not this file. Code search for the Pons sentence was rate-limited, so that index was not fully searched.
+
+No third-party copyright holder is identified, and no upstream license was found that would forbid MIT. `LICENSE` is the MIT grant for the code its copyright holder owns. It does not relicense `near-sdk` or `requests`, and it does not give anyone a license to a file the copyright holder does not own. The hackathon contact sentence is not a copyright license. If a vendored file was copied from someone else, that file has to be removed or replaced before the repository is made public. Agreeing to the contact sentence does not fix that.
 
 Hackathon integration, written with AI coding assistance in Cursor: `contract/src/lib.rs`, `guard/intentguard_guard/guard.py`, `contract_sim.py`, `contract_testnet.py`, `oneclick.py`, `intents_stub.py`, `fixtures.py`, `guard/demo.py`, `guard/live_quote_check.py`, `guard/tests/`, `scripts/verify_testnet_code.py`, and the docs. Runtime does not call NEAR AI Cloud or any other model. The verdicts are deterministic rules. If any integration file was written without an AI tool, correct this paragraph before submission.
 
@@ -104,7 +106,7 @@ Third-party libraries:
 
 - `near-sdk` 5.29.1, published 2026-09-17, license `MIT OR Apache-2.0` (crate metadata). Rust edition 2024, rust-version 1.93.
 - Python 3 standard library.
-- `requests` 2.32.5, used only if the vendored launch-safety fetchers are called.
+- `requests` 2.32.5, Apache-2.0 as published with the installed package. Used only if the vendored launch-safety fetchers are called. Its source is not in this repository. Installing it also installs its own dependencies under their own licenses.
 - NEAR Intents 1Click HTTP API, called with `urllib` by the opt-in script. No 1Click SDK is vendored. No JWT (Q-006). A keyless dry quote includes 1Click's usual fee inside the quoted price.
 
 No other NEAR Hackathon submission is named in this repository (Q-015). If the same person submits a second project, name it here before the repository is made public.
@@ -131,11 +133,12 @@ sha256sum target/near/intentguard.wasm
 
 The reproducible wasm is not the testnet code. The testnet code is the 2026-11-01 non-reproducible artifact `build/intentguard.wasm`, built with cargo-near 0.22.0 before this metadata existed. This repository does not redeploy.
 
-Checked 2026-11-10: two builds of commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` both produced sha256 `4c98ac5a7a89e383fce1e845cf63582ca489471adf1559bf31f8d495922cec74` (153,817 bytes). That commit is the parent of the commit that records this paragraph. Building `HEAD` embeds a new git revision, so its wasm hash will differ. A host `non-reproducible-wasm` build the same day, Rust 1.99.1, produced a third file of 153,321 bytes. The deployed file remains the committed 153,281-byte artifact. Details are in `DEPLOY_TESTNET.md`.
+Checked 2026-11-10: two builds of commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` both produced sha256 `4c98ac5a7a89e383fce1e845cf63582ca489471adf1559bf31f8d495922cec74` (153,817 bytes). That result was written down in commit `3d14cd43486cd43181bdaf8d0eb178bcd24cf0de`. A build of any other commit embeds that other commit and will not match. A host `non-reproducible-wasm` build the same day, Rust 1.99.1, produced a third file of 153,321 bytes. The deployed file remains the committed 153,281-byte artifact. Details are in `DEPLOY_TESTNET.md`.
 
 ## Limitations
 
 - Simulated settlement. Neither `ContractSim` nor on-chain `settle` submits an intent or transfers an asset.
+- The off-chain daily-cap check uses the stored `spent_in_window`. It does not apply the contract's 24-hour reset. After the window rolls, the guard can deny a settlement the contract would accept. It does not allow one the contract would reject.
 - Simulated quotes in the default demo. `intents_stub.py` is constant-product math on fixture reserves. `skew` exists so the demo can show a bad quote.
 - The 1Click command is a separate, live, read-only quote. It is not evidence that a swap settled.
 - Token reports, pools, and wallet histories in `fixtures.py` are synthetic. They use the shapes of RugCheck, DexScreener, and wallet_intel. They are not live NEAR accounts.
@@ -146,4 +149,4 @@ Checked 2026-11-10: two builds of commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075
 
 ## License
 
-MIT. See `LICENSE`.
+MIT, in `LICENSE`, for the code the copyright holder owns. Dependency licenses stay with those packages. See Disclosures for the vendored-file search.

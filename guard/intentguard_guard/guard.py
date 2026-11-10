@@ -39,7 +39,9 @@ def check_risk(p, ctx, cfg):
     v = risk_gate.check(order, ctx.get("book_state") or {}, rcfg, market="skip")
     R += [f"risk_gate: {r}" for r in v["reasons"]]
     c = ctx.get("contract")
-    if c is not None:  # mirror of the on-chain rules, checked BEFORE signing so we never send a doomed tx
+    if c is not None:  # caps, pause, and kill switch from the contract, checked before signing.
+        # The stored spent_in_window is used as-is. The contract's 24h reset is not applied here,
+        # so after a window rollover this check can deny a settle the contract would accept.
         if c.kill_switch:
             R.append("contract: kill switch ON")
         pol = c.get_policy(p["agent"])
