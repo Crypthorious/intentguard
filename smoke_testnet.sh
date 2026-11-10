@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Live smoke test of the deployed IntentGuard contract on NEAR testnet. No mainnet, no real funds.
+# This script SIGNS testnet transactions (gas from the contract account's faucet balance).
+# For a read-only check of the deployed code, use scripts/verify_testnet_code.py instead.
 # Re-runnable: SETUP=1 (default) re-registers bot1, which resets its 24h window.
 # Prints only public data (tx hashes, results, errors). Keys are read from ~/.near-credentials.
 set -uo pipefail

@@ -1,0 +1,3 @@
+# Imported by guard/intentguard_guard/vendor/launch_safety.py.
+# The demo, the unit tests, and the 1Click client do not call those network fetchers.
+requests==2.32.5

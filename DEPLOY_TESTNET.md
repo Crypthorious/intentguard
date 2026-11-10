@@ -69,7 +69,21 @@ If the contract's state layout changes, deploy to a fresh subaccount (e.g. `guar
 `with-init-call new json-args '{"owner":"intentguard-5821c5.testnet"}' prepaid-gas '30 Tgas' attached-deposit '0 NEAR'`
 instead of migrating.
 
-## Not reproducible-build yet
-`cargo near build reproducible-wasm` needs Docker and a committed git repo with `[package.metadata.near.reproducible_build]`.
-Neither exists on the build box (apt mirror errors blocked installing docker.io), so this deploy used `non-reproducible-wasm`.
-The on-chain code hash above is checked against the local wasm instead.
+## Read-only re-check (2026-11-10)
+
+`python3 scripts/verify_testnet_code.py` against `https://rpc.testnet.near.org`. No credentials and no new transaction.
+
+The committed `build/intentguard.wasm` was byte-identical to the code on `guard.intentguard-5821c5.testnet`. `get_owner` was `intentguard-5821c5.testnet`, `is_killed` was false, and `get_policy(bot1)` was per-tx `100000000`, daily `250000000`, spent `70000000`, settlements `2`, not paused. That spent amount matches the two allowed settlements in the offline demo (50 and 20 USDC at 6 decimals). It is the state left by the earlier testnet demo, not a payment made on 2026-11-10.
+
+The 2026-11-01 smoke log above ended with 250/250 spent and was then reset by `register_agent` during the live demo. Trust the read-only script for the current state.
+
+## Reproducible build
+
+The 2026-11-01 deploy used `cargo near build non-reproducible-wasm` (cargo-near 0.22.0) because Docker and `[package.metadata.near.reproducible_build]` were not available then. That wasm is still the code on testnet. Do not replace it with a reproducible build unless you intend to redeploy.
+
+Metadata added for later builds, image digest copied from the Docker Hub tag `sourcescan/cargo-near:0.23.0-rust-1.99.1` (single amd64 image, digest equals the tag digest):
+
+- image: `sourcescan/cargo-near:0.23.0-rust-1.99.1`
+- image_digest: `sha256:8013f039e8005627f10ae66b5519d1a6eeeed7d7aef4b5067d5e9a86c4302fcc`
+
+The double-build result, once measured, is appended below this paragraph. A reproducible wasm embeds the git commit it was built from, so the recorded hash matches that commit only. It will not equal `a27e10243060b99ceb447ed3755a811ae70dcae0f2ff2cb322ed5a40932d0ca8`.
