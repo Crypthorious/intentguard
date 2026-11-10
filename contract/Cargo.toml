@@ -2,6 +2,25 @@
 name = "intentguard"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "On-chain spending caps and kill switch for an AI trading agent"
+repository = "https://github.com/Crypthorious/intentguard"
+
+# Pinned for `cargo near build reproducible-wasm` (NEP-330).
+# Digest is the amd64 tag digest of sourcescan/cargo-near:0.23.0-rust-1.99.1
+# as published on Docker Hub and confirmed by `docker pull` on 2026-11-10.
+# The 2026-11-01 testnet deploy predates this section and was not rebuilt from it.
+[package.metadata.near.reproducible_build]
+image = "sourcescan/cargo-near:0.23.0-rust-1.99.1"
+image_digest = "sha256:8013f039e8005627f10ae66b5519d1a6eeeed7d7aef4b5067d5e9a86c4302fcc"
+passed_env = []
+container_build_command = [
+    "cargo",
+    "near",
+    "build",
+    "non-reproducible-wasm",
+    "--locked",
+]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

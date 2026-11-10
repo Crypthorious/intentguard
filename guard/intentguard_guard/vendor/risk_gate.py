@@ -12,7 +12,8 @@ import json, os, time, threading, urllib.request
 from datetime import datetime, timezone, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CONFIG = os.environ.get("RISK_GATE_CONFIG", os.path.join(HERE, "config.json"))
+# This package stores the vendored config as risk_gate_config.json (there is no config.json).
+CONFIG = os.environ.get("RISK_GATE_CONFIG", os.path.join(HERE, "risk_gate_config.json"))
 _lock = threading.Lock()
 
 

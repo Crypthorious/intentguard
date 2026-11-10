@@ -66,6 +66,8 @@ for amt, label in ((10, "kill switch on"), (500, "kill off, $500 > per-tx cap"))
         print(f"[PASS] 8_bypass_guard ({label}): contract rejected with {e}"); results.append(True)
 print(f"policy after demo: {json.dumps(c.get_policy(AGENT))}")
 print(f"audit log: {AUDIT}")
+print("settlement: simulated ledger only; no intents.near call, no NEP-413 signature, no token transfer")
+print("quotes: intents_stub constant-product fixtures. A live read-only dry quote is python3 guard/live_quote_check.py and is not part of this demo")
 if LIVE:
     for label, h, ok in c.txs:
         print(f"  tx {'ok  ' if ok else 'FAIL'} {label:<28} https://testnet.nearblocks.io/txns/{h}" if h else f"  tx {'ok  ' if ok else 'FAIL'} {label:<28} (no tx hash printed by near-cli)")

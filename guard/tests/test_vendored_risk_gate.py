@@ -173,6 +173,11 @@ class T(unittest.TestCase):
         v = rg.check_order(order(mode="live"), cfg=self.c, state=st(), market=mkt())
         self.assertFalse(v["allow"]); self.assertEqual(len(rg.read_jsonl(self.c["audit_log"])), 2)
 
+    def test_default_config_file_loads(self):
+        cfg = rg.load_config()
+        self.assertEqual(cfg["max_notional_usd"], 20.0)
+        self.assertIn("kill_file", cfg)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
