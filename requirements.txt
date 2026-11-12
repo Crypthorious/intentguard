@@ -1,3 +1,5 @@
 # Imported by guard/intentguard_guard/vendor/launch_safety.py.
 # The demo, the unit tests, and the 1Click client do not call those network fetchers.
 requests==2.32.5
+# ed25519 signing of guard verdicts (guard/intentguard_guard/verdict.py).
+cryptography>=42

@@ -8,3 +8,5 @@ __pycache__/
 .near-credentials/
 *credentials*.json
 SUBMISSION.local.json
+dashboard/rugwall-demo.mp4
+dashboard/poster.png

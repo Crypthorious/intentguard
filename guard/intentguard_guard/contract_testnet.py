@@ -43,6 +43,13 @@ class ContractTestnet:
     def agent_for_key(self, pk):
         return self._view("agent_for_key", {"public_key": pk})
 
+    def get_config(self):
+        return self._view("get_config", {})
+
+    @property
+    def guard_public_key(self):
+        return self._view("get_guard_key", {})
+
     def agent_public_key(self):
         with open(self.agent_key_file) as f:
             return json.load(f)["public_key"]
@@ -92,10 +99,18 @@ class ContractTestnet:
     def set_kill_switch(self, caller, on):
         self._owner_tx("set_kill_switch", {"on": bool(on)}, f"set_kill_switch {bool(on)}")
 
-    def settle(self, signer_pk, amount, token_in, token_out, intent_hash, now_ns=None):
-        # signer_pk ignored: signed with the agent's function-call key file (key limited to `settle`).
-        val, h = self._run("settle", {"amount": str(amount), "token_in": token_in, "token_out": token_out, "intent_hash": intent_hash},
-                           self.contract, ["sign-with-access-key-file", self.agent_key_file], f"settle {amount}")
+    def set_guard_key(self, caller, public_key):
+        if self.guard_public_key == public_key:
+            return
+        self._owner_tx("set_guard_key", {"public_key": public_key}, "set_guard_key")
+
+    def settle(self, signer_pk, amount, token_in, token_out, intent_hash, now_ns=None, verdict=None, label=None):
+        # signer_pk and now_ns ignored: signed with the agent's function-call key file (key limited to `settle`);
+        # the chain uses its own block time for the verdict expiry check.
+        args = {"amount": str(amount), "token_in": token_in, "token_out": token_out, "intent_hash": intent_hash}
+        if verdict is not None:
+            args["verdict"] = verdict
+        val, h = self._run("settle", args, self.contract, ["sign-with-access-key-file", self.agent_key_file], label or f"settle {amount}")
         if isinstance(val, dict):
             val = {k: (int(v) if k in ("amount", "remaining_daily") else v) for k, v in val.items()}
             val["tx"] = h

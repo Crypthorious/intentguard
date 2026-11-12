@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Read-only check: build/intentguard.wasm is the code on the testnet contract.
+"""Read-only check: the committed wasm is the code on the testnet contract.
+
+Default: v0.2 (signed verdicts), build/intentguard-v0.2.wasm vs guard2.intentguard-5821c5.testnet.
+`--v1`: the original v0.1 build/intentguard.wasm vs guard.intentguard-5821c5.testnet (still live, unchanged).
 
 Uses the public NEAR testnet RPC. No credentials, no signatures, no state changes.
 Prints public view results only.
@@ -12,12 +15,19 @@ import sys
 import urllib.request
 from datetime import datetime, timezone
 
-CONTRACT = os.environ.get("INTENTGUARD_CONTRACT", "guard.intentguard-5821c5.testnet")
+V1 = "--v1" in sys.argv
 RPC = os.environ.get("NEAR_TESTNET_RPC", "https://rpc.testnet.near.org")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WASM_PATH = os.path.join(ROOT, "build", "intentguard.wasm")
-EXPECTED_SHA256 = "a27e10243060b99ceb447ed3755a811ae70dcae0f2ff2cb322ed5a40932d0ca8"
-EXPECTED_CODE_HASH = "BwJYCHzNavSTyr462q3xFXTUr9NgP2bR6uUXXMmmfj3V"
+if V1:
+    CONTRACT = os.environ.get("INTENTGUARD_CONTRACT", "guard.intentguard-5821c5.testnet")
+    WASM_PATH = os.path.join(ROOT, "build", "intentguard.wasm")
+    EXPECTED_SHA256 = "a27e10243060b99ceb447ed3755a811ae70dcae0f2ff2cb322ed5a40932d0ca8"
+    EXPECTED_CODE_HASH = "BwJYCHzNavSTyr462q3xFXTUr9NgP2bR6uUXXMmmfj3V"
+else:
+    CONTRACT = os.environ.get("INTENTGUARD_CONTRACT", "guard2.intentguard-5821c5.testnet")
+    WASM_PATH = os.path.join(ROOT, "build", "intentguard-v0.2.wasm")
+    EXPECTED_SHA256 = "deb22a07f3c32bc4bae37613ad344c7a6a4d4c383d887404a021bf4f6cb67904"
+    EXPECTED_CODE_HASH = "FzK5Y6nKKCW1ZqiLcgSoA8h4vXQYSZCWwKV2ASx196No"
 
 ALPH = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
@@ -79,6 +89,8 @@ def main():
     print("get_owner", json.dumps(view("get_owner", {})))
     print("is_killed", json.dumps(view("is_killed", {})))
     print("get_policy_bot1", json.dumps(view("get_policy", {"agent": "bot1"})))
+    if not V1:
+        print("get_guard_key", json.dumps(view("get_guard_key", {})))
     ok = remote == local and local_sha == EXPECTED_SHA256 and code.get("hash") == EXPECTED_CODE_HASH
     print("RESULT", "OK" if ok else "MISMATCH")
     return 0 if ok else 1

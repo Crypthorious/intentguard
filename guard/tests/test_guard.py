@@ -35,7 +35,11 @@ class T(unittest.TestCase):
 
     def test_daily_cap(self):
         c, ctx, _ = setup()
-        c.settle("pk", 100 * 10**6, "a", "b", "h", 0); c.settle("pk", 100 * 10**6, "a", "b", "h", 0)
+        # v0.2: unsigned settles are rejected (ERR_NO_VERDICT), so attach guard-signed verdicts
+        from intentguard_guard.verdict import GuardSigner
+        s = GuardSigner.generate(); c.set_guard_key("o", s.public_key)
+        for n in (1, 2):
+            c.settle("pk", 100 * 10**6, "a", "b", "h", 0, s.sign(c.contract, "bot", "h", 100 * 10**6, "a", "b", now_ns=0, nonce=n))
         v = guard.evaluate(prop(60), ctx)
         self.assertTrue(any("daily cap" in r for r in v["reasons"]))
 
