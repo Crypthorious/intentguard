@@ -6,6 +6,7 @@
 <title>Rugwall (formerly IntentGuard) · live NEAR testnet dashboard</title>
 <meta name="description" content="Rugwall: rug, price and copy-trade firewall for NEAR trading agents. Read-only dashboard of the live testnet contract.">
 <link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%224%22 fill=%22%233ed684%22/%3E%3C/svg%3E">
 </head>
 <body>
 <header class="top">
@@ -19,7 +20,15 @@
   <section class="hero">
     <h1>Rug, price and copy-trade firewall for NEAR trading agents</h1>
     <p class="lead">An AI trading agent proposes a swap. Rugwall checks it for a rug-shaped token, a quote that is off the live pool price, a copied wallet with an insider track record, and the human's spending caps. Only then does it <b>sign</b> an ed25519 verdict. The NEAR contract stores the guard's public key and refuses any <code>settle</code> without a fresh, unused signature, so an agent that skips the guard can't settle, even inside its caps.</p>
-    <p class="small muted">Everything on this page is read live from public NEAR testnet RPC and the public NearBlocks API, except the guard verdict log, which is the saved output of the last live testnet demo run. This page never asks for a wallet, a key or any personal data.</p>
+    <div class="cta"><button id="try-start" type="button" class="big">▶ Try it in 1 minute</button><a class="btn2" href="#agent">Add Rugwall to your agent</a><a class="btn2" href="https://github.com/Crypthorious/intentguard" target="_blank" rel="noopener">GitHub repo ↗</a></div>
+    <p class="small muted">Everything on this page is read live from public NEAR testnet RPC and the public NearBlocks API, except the guard's verdicts, which are the saved output of the last live testnet demo run. Every transaction behind them is re-read from the chain while you watch. This page never asks for a wallet, a key or any personal data.</p>
+  </section>
+
+  <section class="card try" id="try">
+    <div class="card-h"><h2>Try it in 1 minute</h2><span class="small muted">no wallet, no setup</span></div>
+    <p class="small muted">Pick what the agent tries to do. You see what the guard decided in the last live testnet run, then your browser checks the guard's ed25519 signature itself and reads the real transaction from NEAR testnet now. Clicking sends nothing to the chain.</p>
+    <div id="try-buttons" class="chips"></div>
+    <div id="try-out" class="try-out"><p class="muted">Start with <b>1. Safe swap</b>, then try the attacks.</p></div>
   </section>
 
   <section class="grid2">
@@ -46,15 +55,71 @@
 
   <section class="card">
     <div class="card-h"><h2>Guard verdict log</h2><span class="small muted" id="log-meta"></span></div>
-    <p class="small muted">The 13 scenarios from the last live testnet run. A guard DENY never reaches the chain. An ALLOW carries a signed verdict and settles. Scenarios 8 to 13 are a compromised agent calling the contract directly.</p>
+    <p class="small muted">The 13 scenarios from the last live testnet run. A guard DENY never reaches the chain. An ALLOW carries a signed verdict and settles. Scenarios 8 to 13 are a compromised agent calling the contract directly. Each transaction is re-read from NEAR testnet when you open this page.</p>
     <div id="market" class="market"></div>
     <div class="tablewrap"><table id="log"><thead><tr><th>#</th><th>Scenario</th><th>Guard</th><th>Contract</th><th>Why</th><th>Data</th><th>Tx</th></tr></thead><tbody></tbody></table></div>
   </section>
 
+  <section class="card" id="agent">
+    <div class="card-h"><h2>Add Rugwall to your agent</h2><span class="small muted">3 steps: ask the guard → get a signed verdict → settle with it</span></div>
+    <div class="tabs"><button type="button" class="tab on" data-tab="tab-mcp">MCP tool</button><button type="button" class="tab" data-tab="tab-py">Python</button><button type="button" class="tab" data-tab="tab-near">Raw NEAR call</button><button type="button" class="tab" data-tab="tab-run">Run it offline</button></div>
+    <div class="tabpane" id="tab-mcp">
+      <p class="small">Give any MCP client (Claude Desktop, Cursor, an agent framework) a read-only pre-trade check. It runs the four checks on a real 1Click dry quote and the live Ref pool. It never signs.</p>
+      <div class="code"><button type="button" class="copy" data-copy="snip-mcp">Copy</button><pre id="snip-mcp">{"mcpServers": {"rugwall": {
+  "command": "python3",
+  "args": ["/path/to/intentguard/mcp/rugwall_mcp.py"]
+}}}
+
+// then the agent calls, before every swap:
+rugwall_check_swap {"amount_usd": 50}                                   → ALLOW + live quote vs pool
+rugwall_check_swap {"amount_usd": 150, "copied_wallet": "insider_demo"} → DENY + 3 reasons
+rugwall_policy     {"agent": "bot1"}                                    → live caps, kill switch, guard key</pre></div>
+    </div>
+    <div class="tabpane" id="tab-py" hidden>
+      <p class="small">The guard process holds the verdict key, outside the agent and outside the repo. The agent only gets the signed verdict and passes it to <code>settle</code>.</p>
+      <div class="code"><button type="button" class="copy" data-copy="snip-py">Copy</button><pre id="snip-py">from intentguard_guard import guard, verdict
+from intentguard_guard.contract_testnet import ContractTestnet
+
+contract = ContractTestnet("intentguard-5821c5.testnet", "guard2.intentguard-5821c5.testnet",
+                           "~/.near-credentials/testnet/agent-keys/bot1.json")   # agent's settle-only key
+signer = verdict.GuardSigner.from_key_file("~/.near-credentials/testnet/agent-keys/guard-verdict.json")
+ctx = {"contract": contract, "treasury_usd": 1000, "signer": signer,
+       "contract_id": "guard2.intentguard-5821c5.testnet"}
+
+v = guard.evaluate(proposal, ctx)        # risk caps, rug check, quote vs pool, copied wallet
+if v["allow"]:                           # ALLOW comes with an ed25519 verdict; DENY is never signed
+    contract.settle(contract.agent_public_key(), v["amount_raw"], proposal["token_in"],
+                    proposal["token_out"], v["intent_hash"], verdict=v["signed_verdict"])
+else:
+    print("blocked:", v["reasons"])</pre></div>
+    </div>
+    <div class="tabpane" id="tab-near" hidden>
+      <p class="small">What actually reaches NEAR. The agent's function-call key can only call <code>settle</code> on this contract. Without a fresh, unused guard signature over these exact fields, the call fails.</p>
+      <div class="code"><button type="button" class="copy" data-copy="snip-near">Copy</button><pre id="snip-near">near contract call-function as-transaction guard2.intentguard-5821c5.testnet settle \
+  json-args '{"amount":"50000000","token_in":"&lt;usdc&gt;","token_out":"wrap.near",
+    "intent_hash":"&lt;sha256 hex&gt;",
+    "verdict":{"nonce":"&lt;u64&gt;","expires_at_ns":"&lt;now + ≤10 min&gt;","signature":"&lt;128 hex chars&gt;"}}' \
+  prepaid-gas '30 Tgas' attached-deposit '0 NEAR' \
+  sign-as guard2.intentguard-5821c5.testnet network-config testnet \
+  sign-with-access-key-file agent-key.json send
+# no verdict → ERR_NO_VERDICT · changed field → ERR_BAD_SIG · reused → ERR_REPLAY</pre></div>
+    </div>
+    <div class="tabpane" id="tab-run" hidden>
+      <p class="small">The whole loop in one file, offline, no keys: a safe swap settles, a rigged quote is denied, and skipping the guard gets <code>ERR_NO_VERDICT</code>.</p>
+      <div class="code"><button type="button" class="copy" data-copy="snip-run">Copy</button><pre id="snip-run">git clone https://github.com/Crypthorious/intentguard.git && cd intentguard
+python3 -m pip install -r requirements.txt
+python3 examples/agent_quickstart.py</pre></div>
+      <pre class="outbox">safe $50 swap      -> guard ALLOW, signed; contract settled 50.00 USDC, 200.00 left today
+rigged quote (-8%) -> guard DENY, nothing sent: price: quote deviates -8.00% from pool-reserve fair price (> 2.0%)
+skip the guard     -> contract rejected: ERR_NO_VERDICT</pre>
+    </div>
+  </section>
+
   <section class="card">
-    <h2>Try it: do X → see Y</h2>
+    <h2>Check it yourself: do X → see Y</h2>
     <ol class="steps">
-      <li><b>Do:</b> look at <i>Live contract policy</i> above. <b>See:</b> <code>guard_public_key</code> set to the guard's ed25519 key, per-tx cap 100 USDC and daily cap 250 USDC for agent <code>bot1</code>, and the kill switch off.</li>
+      <li><b>Do:</b> press <i>Try it in 1 minute</i> and click through the 8 cases. <b>See:</b> the safe swap settles; the rug, the rigged quote and the insider copy are denied and never reach the chain; the 4 attacks by a compromised agent are rejected on-chain with <code>ERR_NO_VERDICT</code>, <code>ERR_REPLAY</code> and <code>ERR_BAD_SIG</code>, and your browser shows why each signature does or doesn't verify.</li>
+      <li><b>Do:</b> look at <i>Live contract policy</i>. <b>See:</b> <code>guard_public_key</code> set to the guard's ed25519 key, per-tx cap 100 USDC and daily cap 250 USDC for agent <code>bot1</code>, and the kill switch off.</li>
       <li><b>Do:</b> open the <i>On-chain activity</i> table. <b>See:</b> green <code>settle</code> rows (the guard signed them) and red rows with <code>ERR_NO_VERDICT</code>, <code>ERR_REPLAY</code>, <code>ERR_BAD_SIG</code>, <code>ERR_KILL_SWITCH_ON</code> and <code>ERR_OVER_PER_TX_CAP</code>. Click any hash to check it on NearBlocks.</li>
       <li><b>Do:</b> find scenario <code>9_bypass_no_verdict</code> in the verdict log. <b>See:</b> a $10 settle, inside every cap, rejected on-chain with <code>ERR_NO_VERDICT</code>, because the agent skipped the guard.</li>
       <li><b>Do:</b> clone the repo and run <code>./run.sh</code>. <b>See:</b> 27 contract tests, 53 guard tests and <code>RESULT: 13/13 scenarios as expected</code>. It works offline too: the demo falls back to fixtures and says so.</li>
@@ -69,7 +134,8 @@
       <li><b>Real, on testnet:</b> the Rust contract, its caps, the kill switch, the function-call key limited to <code>settle</code>, and on-chain ed25519 verification of every guard verdict, with replay and expiry protection.</li>
       <li><b>Real, read-only, mainnet data:</b> the 1Click quote (<code>dry: true</code>, so no deposit address and no funds), Ref Finance pool 4512 reserves, and the <code>ft_metadata</code> of USDC and wNEAR.</li>
       <li><b>Fixtures:</b> the two meme tokens (<code>goodmeme.pump</code>, <code>rugmeme.pump</code>) and the copied-wallet histories.</li>
-      <li><b>Not done:</b> <code>settle</code> records the spend and emits an event. It does not forward to <code>intents.near</code> or move tokens. No mainnet, no real money.</li>
+      <li><b>Saved, then re-checked live:</b> the guard's verdicts come from the last live testnet run (the guard runs off-chain and its key never touches this page). The transactions behind them, the guard key and the nonce state are read from the chain while you watch.</li>
+      <li><b>Not done:</b> <code>settle</code> records the spend and emits an event. It does not forward to <code>intents.near</code> or move tokens. There is one guard key, held by one guard process. No mainnet, no real money.</li>
     </ul>
   </section>
 </main>

@@ -72,7 +72,31 @@
     "settlement_id": 0,
     "tx": "4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh"
    },
-   "tx": "4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh"
+   "tx": "4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "50000000",
+     "intent_hash": "b7c97653b91a7a27d0fb883114bdb7679dc7424dd16e78a20615163e40f64868",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "wrap.near",
+     "verdict": {
+      "expires_at_ns": "1794486997063195544",
+      "nonce": "8920872922890289560",
+      "signature": "c000beac7ee3322fc39008b121873a3675c69594554109d8b158a8ac204caec374a94e4dc3e5230994d79a837ee2aba5926b5126ddac783c77107485cc6e7204"
+     }
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": true,
+    "error": null,
+    "return": {
+     "agent": "bot1",
+     "settlement_id": 0,
+     "amount": "50000000",
+     "remaining_daily": "200000000"
+    },
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "2_safe_meme_buy",
@@ -94,7 +118,31 @@
     "settlement_id": 1,
     "tx": "5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ"
    },
-   "tx": "5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ"
+   "tx": "5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "20000000",
+     "intent_hash": "8e4bf28f3a962a8b3f06f020529673c5b69bfb6f1311db624a389097fd67ce2d",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "goodmeme.pump",
+     "verdict": {
+      "expires_at_ns": "1794487007512833434",
+      "nonce": "7682259548850471679",
+      "signature": "00b6009a0face3ba893bee59665039678b3e56f42aa240db954160a93f1eceb232b91904eeea5b7d4d3583c390722a29b07330b3f9c6e118e446866759d36b01"
+     }
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": true,
+    "error": null,
+    "return": {
+     "agent": "bot1",
+     "settlement_id": 1,
+     "amount": "20000000",
+     "remaining_daily": "180000000"
+    },
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "3_over_cap",
@@ -201,7 +249,21 @@
    "expected": "ERR_KILL_SWITCH_ON",
    "got": "ERR_KILL_SWITCH_ON",
    "tx": "EwimhtS53YumEpCoj2DcKoMNGELaoeaX5mCAW16fmTwK",
-   "onchain_error": "ERR_KILL_SWITCH_ON"
+   "onchain_error": "ERR_KILL_SWITCH_ON",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "10000000",
+     "intent_hash": "x",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "wrap.near"
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": false,
+    "error": "ERR_KILL_SWITCH_ON",
+    "return": null,
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "9_bypass_no_verdict",
@@ -212,7 +274,21 @@
    "expected": "ERR_NO_VERDICT",
    "got": "ERR_NO_VERDICT",
    "tx": "Ed1UkbEYpFHfFWF4YSMGh2LgVxEb9faotwbVB2e5h84k",
-   "onchain_error": "ERR_NO_VERDICT"
+   "onchain_error": "ERR_NO_VERDICT",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "10000000",
+     "intent_hash": "x",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "wrap.near"
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": false,
+    "error": "ERR_NO_VERDICT",
+    "return": null,
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "10_bypass_over_cap",
@@ -223,7 +299,21 @@
    "expected": "ERR_OVER_PER_TX_CAP",
    "got": "ERR_OVER_PER_TX_CAP",
    "tx": "AxeBb5fhNUrtuDmGz4H2B3tYmmZGB5JsybNBJjJSozvS",
-   "onchain_error": "ERR_OVER_PER_TX_CAP"
+   "onchain_error": "ERR_OVER_PER_TX_CAP",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "500000000",
+     "intent_hash": "x",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "wrap.near"
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": false,
+    "error": "ERR_OVER_PER_TX_CAP",
+    "return": null,
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "11_replay_old_verdict",
@@ -234,7 +324,26 @@
    "expected": "ERR_REPLAY",
    "got": "ERR_REPLAY",
    "tx": "9jPWroHhDF6qLndU2SWutyj5ursEbUMESNevWnmAKBv2",
-   "onchain_error": "ERR_REPLAY"
+   "onchain_error": "ERR_REPLAY",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "50000000",
+     "intent_hash": "b7c97653b91a7a27d0fb883114bdb7679dc7424dd16e78a20615163e40f64868",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "wrap.near",
+     "verdict": {
+      "expires_at_ns": "1794486997063195544",
+      "nonce": "8920872922890289560",
+      "signature": "c000beac7ee3322fc39008b121873a3675c69594554109d8b158a8ac204caec374a94e4dc3e5230994d79a837ee2aba5926b5126ddac783c77107485cc6e7204"
+     }
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": false,
+    "error": "ERR_REPLAY",
+    "return": null,
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "12_tamper_token",
@@ -245,7 +354,26 @@
    "expected": "ERR_BAD_SIG",
    "got": "ERR_BAD_SIG",
    "tx": "78YnQ16aBrhW4SA4LHEUjjh9g71k8v7VcoUm1gpZUkFA",
-   "onchain_error": "ERR_BAD_SIG"
+   "onchain_error": "ERR_BAD_SIG",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "10000000",
+     "intent_hash": "1f89212639631dd7ae65b56e4f13e1b0e8d4707bea5fde5f206010933cc8b178",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "attacker.near",
+     "verdict": {
+      "expires_at_ns": "1794487074077106522",
+      "nonce": "6376227416315046386",
+      "signature": "9e5bce055e9a69ee7ad962d9589c8b40de9454e44ebff3d7945592e6482877440aeee29387fa1e88cc9e692dd47cbe92344f3dd1c498cf6fc37563fa39f23609"
+     }
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": false,
+    "error": "ERR_BAD_SIG",
+    "return": null,
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   },
   {
    "scenario": "13_forged_verdict",
@@ -256,7 +384,26 @@
    "expected": "ERR_BAD_SIG",
    "got": "ERR_BAD_SIG",
    "tx": "96m3M6PMxvwxYkihfNvKJmKbPgzFVu9vD5xWS7tntTHi",
-   "onchain_error": "ERR_BAD_SIG"
+   "onchain_error": "ERR_BAD_SIG",
+   "onchain": {
+    "method": "settle",
+    "args": {
+     "amount": "10000000",
+     "intent_hash": "forged",
+     "token_in": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+     "token_out": "wrap.near",
+     "verdict": {
+      "expires_at_ns": "1794487077133926755",
+      "nonce": "3218421289101523547",
+      "signature": "efdc0d904bdd1aeb1713e6eeb8c1d8e8075cec7e3ae1707f44bf6b9696c69271df09d6d0227b3b068117fed77a06399f4cde4627a02171779928afb3012d7702"
+     }
+    },
+    "signer_public_key": "ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7",
+    "ok": false,
+    "error": "ERR_BAD_SIG",
+    "return": null,
+    "source": "https://archival-rpc.testnet.fastnear.com"
+   }
   }
  ],
  "txs": [

@@ -41,6 +41,8 @@ export PATH="$HOME/.cargo/bin:$PATH"
 (cd contract && cargo near build non-reproducible-wasm)
 INTENTGUARD_NETWORK=testnet INTENTGUARD_EXPORT=/tmp/verdicts.json python3 guard/demo.py   # signs testnet txs
 python3 scripts/build_dashboard_data.py /tmp/verdicts.json dashboard/data/verdicts.json
+python3 scripts/snapshot_onchain.py                                                      # read-only: saved copy of each tx for the dashboard
+python3 scripts/verify_dashboard_data.py                                                 # offline signature check of that copy
 python3 scripts/verify_testnet_code.py                                                   # read-only
 ```
 
