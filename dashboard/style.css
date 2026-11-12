@@ -35,6 +35,30 @@ td.mono,.mono{font-family:ui-monospace,Menlo,monospace}
 .pill.allow{background:#123d29;color:var(--green)}.pill.deny{background:#3d1414;color:var(--red)}
 .reasons{margin:0;padding-left:16px;color:#e9c9c9}
 .market{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
-.market div{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
+.market div{border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;max-width:100%;overflow-wrap:anywhere}
 .steps li{margin:8px 0}
 footer{padding:20px 20px 40px}
+.cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0 6px}
+button.big{font-size:16px;font-weight:700;padding:10px 20px;background:var(--green);color:#04130b;border-color:var(--green)}
+button.big:hover{filter:brightness(1.1)}
+.btn2{display:inline-block;border:1px solid #235a50;border-radius:8px;padding:9px 16px;text-decoration:none;font-size:14px}
+.try{border-color:#235a50;box-shadow:0 0 0 1px #12352a inset}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.chip{background:#0f1a1f;color:var(--text);border-color:var(--line)}
+.chip.on{background:#12352a;color:var(--green);border-color:var(--green)}
+.try-out{min-height:120px}
+.try-out .what{font-size:15px;margin:6px 0 10px}
+.step{display:grid;grid-template-columns:28px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.step-n{width:24px;height:24px;border-radius:50%;background:#12352a;color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.step-b{margin-top:4px;font-size:14px}
+.step-b>div{margin-top:3px;word-break:break-word}
+.checks{list-style:none;padding:0;margin:0 0 6px}.checks li{margin:2px 0}
+.try-next{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+button.link{background:none;border:none;color:var(--teal);padding:0;text-decoration:underline;font-size:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.tab{background:#0f1a1f;color:var(--muted);border-color:var(--line)}.tab.on{color:var(--green);border-color:var(--green);background:#12352a}
+.code{position:relative}
+.code .copy{position:absolute;top:8px;right:8px}
+pre{background:#050809;border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font:12.5px/1.5 ui-monospace,Menlo,monospace;margin:8px 0}
+pre.outbox{color:var(--green)}
+@media(max-width:600px){.kv{grid-template-columns:1fr;gap:0 0}.kv dd{margin-bottom:8px}.wrap{padding:0 12px}.card{padding:14px}.hero h1{font-size:22px}.lead{font-size:15px}button.big{width:100%}}

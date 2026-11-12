@@ -6,4 +6,4 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "no-referrer"
-    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://rpc.testnet.near.org https://test.rpc.fastnear.com https://api-testnet.nearblocks.io; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; form-action 'none'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://rpc.testnet.near.org https://test.rpc.fastnear.com https://archival-rpc.testnet.fastnear.com https://archival-rpc.testnet.near.org https://api-testnet.nearblocks.io; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; form-action 'none'; frame-ancestors 'none'"

@@ -7,7 +7,7 @@ An AI trading agent proposes a swap. Rugwall checks it for four things: a rug-sh
 The repository is still called `intentguard`. The product was renamed because two other NEAR Hackathon entries are also called IntentGuard.
 
 - Track: AI Security & Defense (`security`). It also fits `defi` and `agents`.
-- Live dashboard (read-only, NEAR testnet): **https://rugwall-near.netlify.app**
+- Live dashboard (read-only, NEAR testnet): **https://rugwall-near.netlify.app**. Press **Try it in 1 minute**: no wallet, no setup.
 - Contract (testnet): [`guard2.intentguard-5821c5.testnet`](https://testnet.nearblocks.io/address/guard2.intentguard-5821c5.testnet), v0.2 with signed verdicts. The original v0.1 contract `guard.intentguard-5821c5.testnet` is unchanged and still live.
 - Demo video: `demo/intentguard-demo.mp4`, also on the dashboard.
 
@@ -26,8 +26,9 @@ Trading agents now hold wallets. One prompt injection, a honeypot token, a manip
 
 No NEAR account, key or API key is needed for steps 1 to 6.
 
-1. **Do:** open https://rugwall-near.netlify.app
-   **See:** the live contract policy read from testnet RPC: `guard_public_key` = `ed25519:Ho3s8kHdLEpbBrAVtRNCSMxPgHYEFhx5JqkFRtRHRBXj`, per-tx cap 100 USDC, daily cap 250 USDC, and the kill switch off. Below that are the on-chain transactions. Rejected `settle` calls show their panic code (`ERR_NO_VERDICT`, `ERR_REPLAY`, `ERR_BAD_SIG`, `ERR_KILL_SWITCH_ON`, `ERR_OVER_PER_TX_CAP`), and each one links to NearBlocks. The page also has the guard verdict log and the demo video.
+1. **Do:** open https://rugwall-near.netlify.app and press **Try it in 1 minute**, then click through the 8 cases (safe swap, rug token, rigged quote, copying an insider, agent skips the guard, replayed approval, token swapped after approval, forged approval).
+   **See:** for each case, what the guard decided in the last live testnet run (which of the four checks failed and why), then your browser verifies the guard's ed25519 signature itself against the guard key read live from the contract, and reads the real `settle` transaction from NEAR testnet: `Settled 50 USDC → wrap.near` results for the safe swap, "Nothing sent" for the three guard DENYs, and `ERR_NO_VERDICT`, `ERR_REPLAY` or `ERR_BAD_SIG` for the four attacks. For the token swap, it also shows that the same signature is valid over the token the guard approved, so the one changed field is what broke it. Nothing is sent to the chain.
+   **Also see:** the live contract policy read from testnet RPC: `guard_public_key` = `ed25519:Ho3s8kHdLEpbBrAVtRNCSMxPgHYEFhx5JqkFRtRHRBXj`, per-tx cap 100 USDC, daily cap 250 USDC, and the kill switch off. Below that are the on-chain transactions. Rejected `settle` calls show their panic code (`ERR_NO_VERDICT`, `ERR_REPLAY`, `ERR_BAD_SIG`, `ERR_KILL_SWITCH_ON`, `ERR_OVER_PER_TX_CAP`), and each one links to NearBlocks. The page also has the guard verdict log and the demo video.
 2. **Do:** `cd contract && cargo test`
    **See:** `test result: ok. 27 passed`. The 14 signed-verdict tests include `no_verdict_rejected_even_within_caps`, `tampered_amount_rejected`, `tampered_token_rejected`, `replayed_verdict_rejected`, `expired_verdict_rejected`, `verdict_from_other_key_rejected` and `rotated_guard_key_voids_old_verdicts`. The 13 v0.1 cap, kill-switch and key tests still pass.
 3. **Do:** `cd guard && python3 -m unittest discover -s tests -v`
@@ -50,12 +51,14 @@ No NEAR account, key or API key is needed for steps 1 to 6.
 
    If the network is unavailable, the demo prints `DATA: fixtures (offline fallback: <reason>)`, uses the offline fixtures and still reaches 13/13. `INTENTGUARD_DATA=fixtures` forces that path.
 5. **Do:** `python3 scripts/verify_testnet_code.py`
-   **See:** `bytes_equal True`, `get_guard_key "ed25519:Ho3s8kHd…"` and `RESULT OK`. The committed `build/intentguard-v0.2.wasm` is the code on `guard2.intentguard-5821c5.testnet`. `--v1` checks the original contract.
+   **See:** `bytes_equal True`, `get_guard_key "ed25519:Ho3s8kHd…"` and `RESULT OK`. The committed `build/intentguard-v0.2.wasm` is the code on `guard2.intentguard-5821c5.testnet`. `--v1` checks the original contract. `python3 scripts/verify_dashboard_data.py` checks offline that every saved dashboard transaction's guard signature verifies, or fails, the way the contract ruled (`RESULT OK`).
 6. **Do:** `./run.sh`
    **See:** contract tests, the wasm build, guard tests and the demo, in that order, then exit code 0.
 7. **Do (signs TESTNET transactions, needs the owner's keys):** `INTENTGUARD_NETWORK=testnet python3 guard/demo.py`
    **See:** the same 13/13 against the deployed contract, with a NearBlocks link for every transaction. The run on 2026-11-12 is listed in `DEPLOY_TESTNET.md`.
-8. **Do (optional, MCP):** add `{"command": "python3", "args": ["<repo>/mcp/rugwall_mcp.py"]}` to an MCP client, then call `rugwall_check_swap` with `{"amount_usd": 50}`.
+8. **Do:** `python3 examples/agent_quickstart.py`
+   **See:** in about a second, offline: `safe $50 swap -> guard ALLOW, signed; contract settled 50.00 USDC, 200.00 left today`, `rigged quote (-8%) -> guard DENY, nothing sent: price: quote deviates -8.00% …` and `skip the guard -> contract rejected: ERR_NO_VERDICT`. This is the integration in one file.
+9. **Do (optional, MCP):** add `{"command": "python3", "args": ["<repo>/mcp/rugwall_mcp.py"]}` to an MCP client, then call `rugwall_check_swap` with `{"amount_usd": 50}`.
    **See:** `ALLOW` with the live quote, the pool fair price and the deviation. `{"amount_usd": 150, "copied_wallet": "insider_demo"}` returns `DENY` with three reasons. The tool is read-only and never signs.
 
 ## What is real, simulated, or read-only
@@ -65,8 +68,52 @@ No NEAR account, key or API key is needed for steps 1 to 6.
 | Contract on testnet (`guard2.…`) | Caps, the 24h window, pause, the kill switch, the settle-only function-call key, and ed25519 verdict verification with expiry (10-minute maximum TTL) and nonce replay protection | `settle` records the spend and emits a NEP-297 event. It does **not** call `intents.near` `execute_intents` or move tokens (`TODO(intents)` in `lib.rs`) |
 | `python3 guard/demo.py` (default) | 1Click quote with `dry: true` (no deposit address, no funds), Ref Finance pool 4512 reserves via a mainnet `get_pool` view, and `ft_metadata` for USDC (6 dp) and wNEAR (24 dp) | The contract is `ContractSim`, a Python mirror of `lib.rs` with the same error codes. The meme tokens and wallet histories are fixtures. Scenario 5 tampers with the real quote on purpose |
 | `INTENTGUARD_NETWORK=testnet …demo.py` | Signs testnet transactions with keys in `~/.near-credentials` | Not part of `./run.sh`. No mainnet |
-| Dashboard | Live testnet RPC views, live NearBlocks v3 transaction list, and on-chain error codes from RPC `tx` | The verdict log is the saved export of the last live testnet run (`dashboard/data/verdicts.json`). No wallet connect, no forms |
+| Dashboard and "Try it in 1 minute" | Live testnet RPC views (policy, `get_guard_key`, `is_nonce_used`), live NearBlocks v3 transaction list, each logged transaction re-read from archival testnet RPC, and the guard's ed25519 signatures verified in the browser (WebCrypto) | The guard's verdicts are the saved export of the last live testnet run (`dashboard/data/verdicts.json`); the guard and its key run off-chain and never touch the page. Clicking sends no transaction. If every RPC is down, it shows the saved copy and says so. No wallet connect, no forms |
 | `mcp/rugwall_mcp.py` | Live quote, pool and contract policy reads | Read-only. It never signs |
+
+## Add Rugwall to your agent
+
+Three steps: ask the guard, get a signed verdict, settle with it. `examples/agent_quickstart.py` runs the whole loop offline.
+
+**MCP (read-only pre-trade check, any MCP client):**
+
+```json
+{"mcpServers": {"rugwall": {"command": "python3", "args": ["/path/to/intentguard/mcp/rugwall_mcp.py"]}}}
+```
+
+Then call `rugwall_check_swap {"amount_usd": 50}` before every swap (`ALLOW` with the live 1Click quote vs the Ref pool), and `rugwall_policy {"agent": "bot1"}` for the live caps, kill switch and guard key. The MCP tool never signs.
+
+**Python (the guard process holds the verdict key; the agent only passes the verdict on):**
+
+```python
+from intentguard_guard import guard, verdict
+from intentguard_guard.contract_testnet import ContractTestnet
+
+contract = ContractTestnet("intentguard-5821c5.testnet", "guard2.intentguard-5821c5.testnet",
+                           "~/.near-credentials/testnet/agent-keys/bot1.json")   # agent's settle-only key
+signer = verdict.GuardSigner.from_key_file("~/.near-credentials/testnet/agent-keys/guard-verdict.json")
+ctx = {"contract": contract, "treasury_usd": 1000, "signer": signer,
+       "contract_id": "guard2.intentguard-5821c5.testnet"}
+
+v = guard.evaluate(proposal, ctx)        # risk caps, rug check, quote vs pool, copied wallet
+if v["allow"]:                           # ALLOW comes with an ed25519 verdict; DENY is never signed
+    contract.settle(contract.agent_public_key(), v["amount_raw"], proposal["token_in"],
+                    proposal["token_out"], v["intent_hash"], verdict=v["signed_verdict"])
+else:
+    print("blocked:", v["reasons"])
+```
+
+**What reaches NEAR** (the agent's function-call key can only call `settle` on this contract):
+
+```bash
+near contract call-function as-transaction guard2.intentguard-5821c5.testnet settle \
+  json-args '{"amount":"50000000","token_in":"<usdc>","token_out":"wrap.near","intent_hash":"<sha256 hex>",
+    "verdict":{"nonce":"<u64>","expires_at_ns":"<now + at most 10 min>","signature":"<128 hex chars>"}}' \
+  prepaid-gas '30 Tgas' attached-deposit '0 NEAR' \
+  sign-as guard2.intentguard-5821c5.testnet network-config testnet \
+  sign-with-access-key-file agent-key.json send
+# no verdict -> ERR_NO_VERDICT · any field changed -> ERR_BAD_SIG · reused -> ERR_REPLAY
+```
 
 ## How it works
 
@@ -164,7 +211,7 @@ No other NEAR Hackathon submission is named in this repository (Q-015). If the s
 
 ## Testnet
 
-v0.2 contract (signed verdicts): `guard2.intentguard-5821c5.testnet`, deployed 2026-11-12 with `new(owner, guard_public_key)`. The state layout changed (guard key and used nonces), so it went to a fresh sub-account instead of a migration. The v0.1 contract `guard.intentguard-5821c5.testnet` is unchanged. The owner of both is `intentguard-5821c5.testnet`. Deploy transactions, public keys and both live runs are in `DEPLOY_TESTNET.md`. `smoke_testnet.sh` still targets the v0.1 contract and its 4-argument `settle`.
+v0.2 contract (signed verdicts): `guard2.intentguard-5821c5.testnet`, deployed 2026-11-12 with `new(owner, guard_public_key)`. The state layout changed (guard key and used nonces), so it went to a fresh sub-account instead of a migration. The v0.1 contract `guard.intentguard-5821c5.testnet` is unchanged. The owner of both is `intentguard-5821c5.testnet`. Deploy transactions, public keys and both live runs are in `DEPLOY_TESTNET.md`. `smoke_testnet.sh` still targets the v0.1 contract and its 4-argument `settle`, and refuses to run against any other contract. For v0.2 use `INTENTGUARD_NETWORK=testnet python3 guard/demo.py`.
 
 The read-only state below is for the v0.1 contract.
 

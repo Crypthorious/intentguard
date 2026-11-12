@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Live smoke test of the deployed IntentGuard contract on NEAR testnet. No mainnet, no real funds.
+# Live smoke test of the v0.1 IntentGuard contract (guard.intentguard-5821c5.testnet) on NEAR testnet.
+# No mainnet, no real funds. v0.1 has no signed verdicts, so its `settle` takes 4 arguments.
+# For the v0.2 contract (guard2.…, signed verdicts) use: INTENTGUARD_NETWORK=testnet python3 guard/demo.py
 # This script SIGNS testnet transactions (gas from the contract account's faucet balance).
 # For a read-only check of the deployed code, use scripts/verify_testnet_code.py instead.
 # Re-runnable: SETUP=1 (default) re-registers bot1, which resets its 24h window.
@@ -8,6 +10,11 @@ set -uo pipefail
 export PATH="$HOME/.cargo/bin:$PATH"
 OWNER=${OWNER:-intentguard-5821c5.testnet}
 C=${CONTRACT:-guard.$OWNER}
+if [ "$C" != "guard.$OWNER" ]; then
+  echo "smoke_testnet.sh only targets the v0.1 contract guard.$OWNER (got $C)." >&2
+  echo "For v0.2 ($C): INTENTGUARD_NETWORK=testnet python3 guard/demo.py, or python3 scripts/verify_testnet_code.py" >&2
+  exit 2
+fi
 AGENT_KEY_FILE=${AGENT_KEY_FILE:-$HOME/.near-credentials/testnet/agent-keys/bot1.json}
 AGENT_PK=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['public_key'])" "$AGENT_KEY_FILE")
 NET="network-config testnet"
