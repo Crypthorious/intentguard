@@ -1,21 +1,126 @@
-# IntentGuard
+# Rugwall (formerly IntentGuard)
 
-Policy firewall for an AI trading agent. The agent proposes a swap. An off-chain guard denies it when a spending cap, launch-safety rule, pool-price check, or copied-wallet score fails. A NEAR contract enforces the per-transaction cap, the rolling 24-hour cap, and a human kill switch. The agent can reach that contract only with a function-call access key limited to the method `settle`.
+**Rug, price and copy-trade firewall for NEAR trading agents.**
 
-Track: AI Security & Defense (`security`). NEAR's role is the control plane: the caps and the key permission are on-chain, so a process that skips the off-chain guard still cannot raise its own limit or clear the kill switch.
+An AI trading agent proposes a swap. Rugwall checks it for four things: a rug-shaped token, a quote that is off the live pool price, a copied wallet with an insider track record, and the human's spending caps. Only if all four pass does the guard sign an ed25519 verdict. The NEAR contract stores the guard's public key and refuses any `settle` that lacks a fresh, unused signature over the exact amount, tokens and intent hash. An agent that skips the guard cannot settle, even inside its caps.
+
+The repository is still called `intentguard`. The product was renamed because two other NEAR Hackathon entries are also called IntentGuard.
+
+- Track: AI Security & Defense (`security`). It also fits `defi` and `agents`.
+- Live dashboard (read-only, NEAR testnet): **https://rugwall-near.netlify.app**
+- Contract (testnet): [`guard2.intentguard-5821c5.testnet`](https://testnet.nearblocks.io/address/guard2.intentguard-5821c5.testnet), v0.2 with signed verdicts. The original v0.1 contract `guard.intentguard-5821c5.testnet` is unchanged and still live.
+- Demo video: `demo/intentguard-demo.mp4`, also on the dashboard.
+
+## The problem
+
+Trading agents now hold wallets. One prompt injection, a honeypot token, a manipulated solver quote or a copied wallet that turns out to be a dev dumping can drain the treasury in one transaction. Spending caps limit how much is lost. They do not ask whether the trade should happen at all. An off-chain checker does ask, but a compromised agent can simply skip it.
+
+## What NEAR does here
+
+- **Function-call access key.** The agent's only key can call one method, `settle`, on one contract. It cannot transfer NEAR, add keys or change policy.
+- **On-chain policy.** The per-transaction cap, the rolling 24-hour cap, the per-agent pause and the human kill switch live in the contract. The agent cannot raise its own limit.
+- **On-chain signature check.** `settle` runs `env::ed25519_verify` on the guard's verdict. Every verdict is bound to the contract, the agent, the intent hash, the amount, both tokens, an expiry and a nonce. That turns the off-chain rug, price and reputation checks into something the chain enforces. No signature means no settle.
+- **NEAR Intents 1Click** supplies the real quote (`dry: true`), and **Ref Finance** pool reserves on NEAR supply the fair price that the quote is checked against.
+
+## Try it: do X → see Y
+
+No NEAR account, key or API key is needed for steps 1 to 6.
+
+1. **Do:** open https://rugwall-near.netlify.app
+   **See:** the live contract policy read from testnet RPC: `guard_public_key` = `ed25519:Ho3s8kHdLEpbBrAVtRNCSMxPgHYEFhx5JqkFRtRHRBXj`, per-tx cap 100 USDC, daily cap 250 USDC, and the kill switch off. Below that are the on-chain transactions. Rejected `settle` calls show their panic code (`ERR_NO_VERDICT`, `ERR_REPLAY`, `ERR_BAD_SIG`, `ERR_KILL_SWITCH_ON`, `ERR_OVER_PER_TX_CAP`), and each one links to NearBlocks. The page also has the guard verdict log and the demo video.
+2. **Do:** `cd contract && cargo test`
+   **See:** `test result: ok. 27 passed`. The 14 signed-verdict tests include `no_verdict_rejected_even_within_caps`, `tampered_amount_rejected`, `tampered_token_rejected`, `replayed_verdict_rejected`, `expired_verdict_rejected`, `verdict_from_other_key_rejected` and `rotated_guard_key_voids_old_verdicts`. The 13 v0.1 cap, kill-switch and key tests still pass.
+3. **Do:** `cd guard && python3 -m unittest discover -s tests -v`
+   **See:** `Ran 53 tests` and `OK`. That is 13 guard, 11 signed-verdict, 4 live-data and MCP (network mocked), 3 dry-quote parser and 22 vendored risk-gate tests.
+4. **Do:** `python3 guard/demo.py`
+   **See:** a `DATA: live, read-only.` line naming Ref Finance pool 4512's reserves and the 1Click dry quotes, then one line per scenario, then `RESULT: 13/13 scenarios as expected` and exit code 0:
+   - `1_safe_swap_usdc_wnear`: `guard=ALLOW`, `data=live`, `sig=ed25519:…`, settles with remaining daily `200000000`
+   - `2_safe_meme_buy`: `guard=ALLOW`, signed and settled (the token is a fixture)
+   - `3_over_cap`: `guard=DENY`, `max_notional: $150.00 > $100.00` and `contract: per-tx cap`
+   - `4_rug_bundled_token`: `guard=DENY` for mint authority, a bundled launch, insiders, the LP lock, the creator's holding and liquidity
+   - `5_bad_quote_manipulated`: `guard=DENY`, because the real 1Click quote, tampered by 8%, deviates about `-7.8%` from the live pool price
+   - `6_copy_insider_wallet`: `guard=DENY`, `insider9.near score 0/10 REJECT`
+   - `7_kill_switch_on`: `guard=DENY`, `contract: kill switch ON`
+   - `8_bypass_kill_switch_on`: the agent calls the contract directly and gets `ERR_KILL_SWITCH_ON`
+   - `9_bypass_no_verdict`: with the kill switch off, a $10 settle inside every cap but with no guard signature gets **`ERR_NO_VERDICT`**
+   - `10_bypass_over_cap`: `ERR_OVER_PER_TX_CAP`
+   - `11_replay_old_verdict`: re-sending scenario 1's signed verdict gets `ERR_REPLAY`
+   - `12_tamper_token`: the guard approved $10 of wNEAR and the agent changed `token_out` to `attacker.near`, so it gets `ERR_BAD_SIG`
+   - `13_forged_verdict`: the agent signed its own "approval" and gets `ERR_BAD_SIG`
+
+   If the network is unavailable, the demo prints `DATA: fixtures (offline fallback: <reason>)`, uses the offline fixtures and still reaches 13/13. `INTENTGUARD_DATA=fixtures` forces that path.
+5. **Do:** `python3 scripts/verify_testnet_code.py`
+   **See:** `bytes_equal True`, `get_guard_key "ed25519:Ho3s8kHd…"` and `RESULT OK`. The committed `build/intentguard-v0.2.wasm` is the code on `guard2.intentguard-5821c5.testnet`. `--v1` checks the original contract.
+6. **Do:** `./run.sh`
+   **See:** contract tests, the wasm build, guard tests and the demo, in that order, then exit code 0.
+7. **Do (signs TESTNET transactions, needs the owner's keys):** `INTENTGUARD_NETWORK=testnet python3 guard/demo.py`
+   **See:** the same 13/13 against the deployed contract, with a NearBlocks link for every transaction. The run on 2026-11-12 is listed in `DEPLOY_TESTNET.md`.
+8. **Do (optional, MCP):** add `{"command": "python3", "args": ["<repo>/mcp/rugwall_mcp.py"]}` to an MCP client, then call `rugwall_check_swap` with `{"amount_usd": 50}`.
+   **See:** `ALLOW` with the live quote, the pool fair price and the deviation. `{"amount_usd": 150, "copied_wallet": "insider_demo"}` returns `DENY` with three reasons. The tool is read-only and never signs.
 
 ## What is real, simulated, or read-only
 
-| Path | What it does | What it does not do |
+| Path | Real | Not real / not done |
 |---|---|---|
-| `python3 guard/demo.py` (default) | Deterministic offline demo. Guard verdicts plus `ContractSim`, a Python mirror of the contract rules. | No network. No chain transaction. No NEAR Intents quote. `settle` records a local ledger entry only. |
-| `cd contract && cargo test` | Runs the Rust contract in the near-sdk unit-test VM, including cap, kill-switch, and key-binding rejections. | Does not deploy. Does not call `intents.near`. |
-| `python3 scripts/verify_testnet_code.py` | Read-only public RPC. Compares `build/intentguard.wasm` to the code on `guard.intentguard-5821c5.testnet` and prints `get_owner`, `is_killed`, and `get_policy`. | No credentials. No signature. No state change. |
-| `python3 guard/live_quote_check.py` | Read-only POST to the public 1Click API with `dry: true`. Prints the quote and a price-loss check against 1Click's own USD figures. | Not a settlement. The client refuses a response whose request was not dry. No API key. No deposit is broadcast. Not part of `./run.sh`. |
-| `INTENTGUARD_NETWORK=testnet python3 guard/demo.py` and `./smoke_testnet.sh` | Sign testnet transactions with keys already in `~/.near-credentials`. | Not run by the default checks. No mainnet. These scripts are not required to review the prototype. |
-| On-chain `settle` | Records the amount, updates the 24h window, emits a NEP-297 `settle` event, and returns the remaining daily budget. | Does not call `intents.near` `execute_intents`. Does not sign a NEP-413 intent. Does not move tokens. Marked `TODO(intents)` in `contract/src/lib.rs`. |
+| Contract on testnet (`guard2.…`) | Caps, the 24h window, pause, the kill switch, the settle-only function-call key, and ed25519 verdict verification with expiry (10-minute maximum TTL) and nonce replay protection | `settle` records the spend and emits a NEP-297 event. It does **not** call `intents.near` `execute_intents` or move tokens (`TODO(intents)` in `lib.rs`) |
+| `python3 guard/demo.py` (default) | 1Click quote with `dry: true` (no deposit address, no funds), Ref Finance pool 4512 reserves via a mainnet `get_pool` view, and `ft_metadata` for USDC (6 dp) and wNEAR (24 dp) | The contract is `ContractSim`, a Python mirror of `lib.rs` with the same error codes. The meme tokens and wallet histories are fixtures. Scenario 5 tampers with the real quote on purpose |
+| `INTENTGUARD_NETWORK=testnet …demo.py` | Signs testnet transactions with keys in `~/.near-credentials` | Not part of `./run.sh`. No mainnet |
+| Dashboard | Live testnet RPC views, live NearBlocks v3 transaction list, and on-chain error codes from RPC `tx` | The verdict log is the saved export of the last live testnet run (`dashboard/data/verdicts.json`). No wallet connect, no forms |
+| `mcp/rugwall_mcp.py` | Live quote, pool and contract policy reads | Read-only. It never signs |
 
-`build/intentguard.wasm` (153,281 bytes, sha256 `a27e10243060b99ceb447ed3755a811ae70dcae0f2ff2cb322ed5a40932d0ca8`, code hash `BwJYCHzNavSTyr462q3xFXTUr9NgP2bR6uUXXMmmfj3V`) is the artifact deployed on 2026-11-01. It is committed so the read-only check works on a fresh clone without rebuilding. A later rebuild, reproducible or not, is a different file and has not been deployed.
+## How it works
+
+```
+agent proposal ──► Rugwall guard (off-chain, fail-closed)
+                    1 risk: caps + kill switch read from the contract, vendored risk_gate
+                    2 launch: rug report (authorities, LP lock, bundles, insiders, holders, liquidity)
+                    3 price: live 1Click quote vs Ref pool constant-product fair output (±2%)
+                    4 reputation: copied wallet score ≥ 6/10 and not REJECT
+                 ── ALLOW ──► ed25519 verdict over (contract, agent, intent_hash, amount, token_in, token_out, expires_at_ns, nonce)
+agent ──settle(amount, token_in, token_out, intent_hash, verdict)──► contract (function-call key, settle only)
+                    kill switch, pause, per-tx cap → verdict present? → not expired, TTL ≤ 10 min → nonce unused
+                    → ed25519_verify against the stored guard key → 24h cap → record spend, burn nonce, emit event
+```
+
+The verdict message is UTF-8, with newline-separated fields:
+
+```
+intentguard-verdict-v1
+<contract_id>
+<agent>
+<intent_hash>
+<amount, smallest unit>
+<token_in>
+<token_out>
+<expires_at_ns>
+<nonce>
+```
+
+`verdict_message` in `contract/src/lib.rs` and `guard/intentguard_guard/verdict.py` build the same bytes. A shared test vector checks both. The signature is sent as 128 hex characters.
+
+| Contract error | When |
+|---|---|
+| `ERR_MUST_USE_AGENT_KEY` / `ERR_KEY_NOT_BOUND` | Not called through a bound agent function-call key |
+| `ERR_KILL_SWITCH_ON` / `ERR_AGENT_PAUSED` | The human stopped trading |
+| `ERR_OVER_PER_TX_CAP` / `ERR_OVER_DAILY_CAP` | Over the on-chain caps |
+| `ERR_NO_VERDICT` | No guard verdict attached |
+| `ERR_GUARD_KEY_NOT_SET` | No guard key configured (fails closed) |
+| `ERR_VERDICT_EXPIRED` / `ERR_VERDICT_TTL_TOO_LONG` | Block time is past `expires_at_ns`, or the expiry is more than 10 minutes ahead |
+| `ERR_REPLAY` | The nonce was already settled |
+| `ERR_BAD_SIG` | Malformed signature, the wrong key, or any signed field changed |
+
+Owner-only methods: `register_agent`, `set_caps`, `set_kill_switch`, `set_agent_paused`, `add_agent_key`, `revoke_agent_key`, and `set_guard_key`, which rotates the key and voids old verdicts at once. Views: `get_config`, `get_policy`, `list_agents`, `get_guard_key`, `is_nonce_used`, `is_killed`, `get_owner`, `agent_for_key`.
+
+Guard checks (`guard/intentguard_guard/guard.py`, fail-closed, so missing data or an exception means `DENY`):
+
+| Check | Code | Blocks when |
+|---|---|---|
+| risk | `vendor/risk_gate.py` `check` (with `market="skip"`), plus the contract policy | Kill file, notional over the cap, too many positions or trades, daily loss stop, contract kill switch, a paused agent, the per-tx cap, the 24h cap |
+| launch | `vendor/launch_safety.py` `decide` | Mint or freeze authority, LP lock under 99.9%, insiders or bundles, a top holder at 5% or more, the top 10 at 30% or more, the creator at 2% or more, under 150 holders, liquidity under $12k, one-way trading. Skipped for allowlisted majors (USDC, wNEAR, ETH) |
+| price | `check_price` | The quote differs from the constant-product fair output by more than 2%, or pool liquidity is under $12k |
+| reputation | `vendor/wallet_score.py` | The copied signal wallet scores under 6/10 or `REJECT` |
+
+Keys: the guard's verdict key is the guard's own ed25519 key, not a NEAR account key. It never signs a transaction. The offline demo makes a new one on every run. The testnet guard reads it from `~/.near-credentials/testnet/agent-keys/guard-verdict.json`, outside the repo. The agent's function-call key, the owner key and the guard key are three separate keys.
 
 ## Fresh clone
 
@@ -29,63 +134,7 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/release
 python3 scripts/verify_testnet_code.py
 ```
 
-`./run.sh` needs Python 3.10+, Rust 1.99.1 (near-sdk 5.29.1 declares rust-version 1.93 and edition 2024), the `wasm32-unknown-unknown` target, and cargo-near 0.23.0. It does not need Docker, a NEAR account, or an API key. `requests` is imported by the vendored launch-safety fetchers; the demo and unit tests do not call those fetchers.
-
-## Try it
-
-1. Do: `cd contract && cargo test`
-   See: `test result: ok. 13 passed`, including `over_per_tx_cap_rejected`, `over_daily_cap_rejected`, `kill_switch_blocks`, `unbound_key_rejected`, `external_caller_rejected`, `agent_cannot_flip_kill_switch`.
-2. Do: `cd contract && cargo near build non-reproducible-wasm`
-   See: `contract/target/near/intentguard.wasm`. This wasm is not the deployed file. The deployed file is `build/intentguard.wasm`.
-3. Do: `cd guard && python3 -m unittest discover -s tests -v`
-   See: `Ran 38 tests` and `OK` (13 guard, 3 dry-quote parser, 22 vendored risk-gate).
-4. Do: `python3 guard/demo.py`
-   See one line per scenario, then `RESULT: 9/9 scenarios as expected` and exit code 0:
-   - `1_safe_swap_usdc_wnear` `guard=ALLOW`, settle remaining daily `200000000`
-   - `2_safe_meme_buy` `guard=ALLOW`
-   - `3_over_cap` `guard=DENY`, `max_notional: $150.00 > $100.00` and `contract: per-tx cap 150.00 > 100.00 USD`
-   - `4_rug_bundled_token` `guard=DENY`, mint authority, bundled launch, insiders, LP lock, creator holding, liquidity
-   - `5_bad_quote_manipulated` `guard=DENY`, quote deviates `-8.00%` from the pool-reserve fair price
-   - `6_copy_insider_wallet` `guard=DENY`, `insider9.near score 0/10 REJECT`
-   - `7_kill_switch_on` `guard=DENY`, `contract: kill switch ON`
-   - `8_bypass_guard` twice: the agent calls the contract directly and is rejected with `ERR_KILL_SWITCH_ON`, then `ERR_OVER_PER_TX_CAP`
-   - The two lines before `RESULT` say settlement is a simulated ledger and quotes are fixtures
-5. Do: `./run.sh`
-   See: the four steps above, in that order, and exit code 0.
-6. Do: `python3 scripts/verify_testnet_code.py`
-   See: `bytes_equal True`, `get_owner "intentguard-5821c5.testnet"`, and `RESULT OK`.
-7. Do: `python3 guard/live_quote_check.py`
-   See: one `1Click dry quote` line and a verdict. The numbers move with the market. This is a quote, not a payment. Checked 2026-11-10: `1.0 wNEAR -> 3.639013 USDC`, deviation `+0.000%` against 1Click's own USD figures, verdict `ALLOW`. A later run the same day, in the demo recording, was also `ALLOW` at `+0.000%`. The USDC amount moves with the market. Neither run was settled.
-
-## How the control works
-
-Proposal fields: `agent`, `token_in`, `token_out`, `amount_in`, `amount_usd`, `quote`, `pool`, `token_report`, `signal_wallet`.
-
-`guard/intentguard_guard/guard.py` `evaluate` is fail-closed. Missing data or an exception becomes `DENY`.
-
-| Check | Code | Blocks when |
-|---|---|---|
-| risk | `vendor/risk_gate.py` `check`, with `market="skip"`, plus the contract policy | Kill file, notional over the cap, too many open positions or trades, daily loss stop; contract kill switch, paused agent, per-tx cap, 24h cap |
-| launch | `vendor/launch_safety.py` `decide` | Mint or freeze authority, LP lock under 99.9%, insiders or bundles, top holder at least 5%, top 10 at least 30%, creator at least 2%, under 150 holders, liquidity under $12k, one-way trading, chase. Skipped for allowlisted majors `usdc.near`, `wrap.near`, `eth.bridge.near` |
-| price | `guard.py` `check_price` and `vendor/pool_reserve.py` | Quote differs by more than 2% from constant-product fair output, or pool liquidity under $12k. A Uniswap V4 `sqrtPriceX96` mid is supported by the vendored helper |
-| reputation | `vendor/wallet_score.py` `judge` and `verdict` | Copied signal wallet scores under 6/10 or `REJECT` |
-
-Contract (`contract/src/lib.rs`, near-sdk 5.29.1):
-
-- `new(owner)`. Owner only: `register_agent`, `set_caps`, `set_kill_switch`, `set_agent_paused`, `add_agent_key`, `revoke_agent_key`.
-- `add_agent_key` adds a function-call access key on the contract account. Receiver is the contract itself. Method name is `settle` only. Allowance is limited.
-- `settle(amount, token_in, token_out, intent_hash)` requires the predecessor to be the contract account (`ERR_MUST_USE_AGENT_KEY`), maps `signer_account_pk` to an agent (`ERR_KEY_NOT_BOUND`), then applies the kill switch, pause, per-tx cap, and 24h cap. Success writes the spend and logs a NEP-297 `settle` event.
-- Views: `get_policy`, `is_killed`, `get_owner`, `agent_for_key`.
-
-### Function-call key limits
-
-The deployed agent key can call only `settle` on `guard.intentguard-5821c5.testnet`. It cannot transfer NEAR, add or delete keys, stake, or call `set_kill_switch`, `register_agent`, or `set_caps`. The owner account is a different account and is the only predecessor allowed to change policy (`ERR_NOT_OWNER`).
-
-The key lives on the contract account, so a successful `settle` is a self-call: predecessor and signer account are the contract, and the signer public key selects the agent. The contract account still has its own full-access key, held outside the repo, so the agent key cannot lock the human out of the contract account. The agent key's gas allowance is finite (0.25 NEAR on the deployed key). When that allowance is spent, `settle` stops until the owner adds a replacement key. An account that had only this function-call key and no full-access key could not add a new key; that is the usual NEAR function-call-key lockout, and it is not how this contract account is set up.
-
-The key does not authorize NEAR Intents. `settle` does not forward an intent.
-
-`ContractSim` checks the bound key, the caps, and the kill switch. It does not model the predecessor check `ERR_MUST_USE_AGENT_KEY`. That check is in the Rust tests and was exercised on testnet on 2026-11-01 (see `DEPLOY_TESTNET.md`).
+`./run.sh` needs Python 3.10 or newer with `cryptography`, Rust 1.99.1 (near-sdk 5.29.1 declares rust-version 1.93), the `wasm32-unknown-unknown` target and cargo-near 0.23.0. It does not need Docker, a NEAR account or an API key. It uses the network for live read-only data if it can, and falls back to fixtures if it can't.
 
 ## Disclosures (Q-005)
 
@@ -100,20 +149,24 @@ Provenance check on 2026-11-10. None of those four modules contains a copyright 
 
 No third-party copyright holder is identified, and no upstream license was found that would forbid MIT. `LICENSE` is the MIT grant for the code its copyright holder owns. It does not relicense `near-sdk` or `requests`, and it does not give anyone a license to a file the copyright holder does not own. The hackathon contact sentence is not a copyright license. If a vendored file was copied from someone else, that file has to be removed or replaced before the repository is made public. Agreeing to the contact sentence does not fix that.
 
-Hackathon integration, written with AI coding assistance in Cursor: `contract/src/lib.rs`, `guard/intentguard_guard/guard.py`, `contract_sim.py`, `contract_testnet.py`, `oneclick.py`, `intents_stub.py`, `fixtures.py`, `guard/demo.py`, `guard/live_quote_check.py`, `guard/tests/`, `scripts/verify_testnet_code.py`, and the docs. Runtime does not call NEAR AI Cloud or any other model. The verdicts are deterministic rules. If any integration file was written without an AI tool, correct this paragraph before submission.
+Hackathon integration, written with AI coding assistance in Cursor: `contract/src/lib.rs`, `guard/intentguard_guard/guard.py`, `verdict.py`, `live_data.py`, `contract_sim.py`, `contract_testnet.py`, `oneclick.py`, `intents_stub.py`, `fixtures.py`, `guard/demo.py`, `guard/live_quote_check.py`, `guard/tests/`, `mcp/rugwall_mcp.py`, `dashboard/`, `scripts/`, and the docs. Runtime does not call NEAR AI Cloud or any other model. The verdicts are deterministic rules. If any integration file was written without an AI tool, correct this paragraph before submission.
 
 Third-party libraries:
 
 - `near-sdk` 5.29.1, published 2026-09-17, license `MIT OR Apache-2.0` (crate metadata). Rust edition 2024, rust-version 1.93.
 - Python 3 standard library.
 - `requests` 2.32.5, Apache-2.0 as published with the installed package. Used only if the vendored launch-safety fetchers are called. Its source is not in this repository. Installing it also installs its own dependencies under their own licenses.
-- NEAR Intents 1Click HTTP API, called with `urllib` by the opt-in script. No 1Click SDK is vendored. No JWT (Q-006). A keyless dry quote includes 1Click's usual fee inside the quoted price.
+- `cryptography` (Apache-2.0 OR BSD-3-Clause), for the guard's ed25519 verdict signatures. `ed25519-dalek` 2.2.0 (BSD-3-Clause) is a Rust dev-dependency used only by the contract unit tests to sign test verdicts.
+- Public read-only data: NEAR mainnet RPC views on `v2.ref-finance.near` (`get_pool`) and the USDC / wNEAR token contracts (`ft_metadata`); NearBlocks testnet API v3 for the dashboard's transaction list.
+- NEAR Intents 1Click HTTP API, called with `urllib` by the demo, the MCP tool and the opt-in script. No 1Click SDK is vendored. No JWT (Q-006). A keyless dry quote includes 1Click's usual fee inside the quoted price.
 
 No other NEAR Hackathon submission is named in this repository (Q-015). If the same person submits a second project, name it here before the repository is made public.
 
 ## Testnet
 
-Contract `guard.intentguard-5821c5.testnet`. Owner `intentguard-5821c5.testnet`. Deploy transactions, the public function-call key, and the 2026-11-01 smoke log are in `DEPLOY_TESTNET.md`.
+v0.2 contract (signed verdicts): `guard2.intentguard-5821c5.testnet`, deployed 2026-11-12 with `new(owner, guard_public_key)`. The state layout changed (guard key and used nonces), so it went to a fresh sub-account instead of a migration. The v0.1 contract `guard.intentguard-5821c5.testnet` is unchanged. The owner of both is `intentguard-5821c5.testnet`. Deploy transactions, public keys and both live runs are in `DEPLOY_TESTNET.md`. `smoke_testnet.sh` still targets the v0.1 contract and its 4-argument `settle`.
+
+The read-only state below is for the v0.1 contract.
 
 Read-only state observed 2026-11-10 from `https://rpc.testnet.near.org`: code hash equals `build/intentguard.wasm`, owner is the account above, kill switch is off, `bot1` policy is per-tx `100000000`, daily `250000000`, spent `70000000`, settlements `2`. That spent figure is the two allowed demo settlements (50 and 20 USDC, 6 decimals), not a new payment made for this check.
 
@@ -131,20 +184,20 @@ sha256sum target/near/intentguard.wasm
 # run the same command again; the sha256 is the reproducibility result
 ```
 
-The reproducible wasm is not the testnet code. The testnet code is the 2026-11-01 non-reproducible artifact `build/intentguard.wasm`, built with cargo-near 0.22.0 before this metadata existed. This repository does not redeploy.
+The reproducible wasm is not the testnet code. The v0.1 testnet code is the 2026-11-01 non-reproducible artifact `build/intentguard.wasm`. The v0.2 testnet code is `build/intentguard-v0.2.wasm` (174,068 bytes, sha256 `deb22a07f3c32bc4bae37613ad344c7a6a4d4c383d887404a021bf4f6cb67904`, code hash `FzK5Y6nKKCW1ZqiLcgSoA8h4vXQYSZCWwKV2ASx196No`), a `non-reproducible-wasm` build from 2026-11-12. A reproducible build of v0.2 has not been recorded.
 
 Checked 2026-11-10: two builds of commit `a3927dbd9b17dc32ad963f7f1cc2aa8cb54075cc` both produced sha256 `4c98ac5a7a89e383fce1e845cf63582ca489471adf1559bf31f8d495922cec74` (153,817 bytes). That result was written down in commit `3d14cd43486cd43181bdaf8d0eb178bcd24cf0de`. A build of any other commit embeds that other commit and will not match. A host `non-reproducible-wasm` build the same day, Rust 1.99.1, produced a third file of 153,321 bytes. The deployed file remains the committed 153,281-byte artifact. Details are in `DEPLOY_TESTNET.md`.
 
 ## Limitations
 
-- Simulated settlement. Neither `ContractSim` nor on-chain `settle` submits an intent or transfers an asset.
-- The off-chain daily-cap check uses the stored `spent_in_window`. It does not apply the contract's 24-hour reset. After the window rolls, the guard can deny a settlement the contract would accept. It does not allow one the contract would reject.
-- Simulated quotes in the default demo. `intents_stub.py` is constant-product math on fixture reserves. `skew` exists so the demo can show a bad quote.
-- The 1Click command is a separate, live, read-only quote. It is not evidence that a swap settled.
-- Token reports, pools, and wallet histories in `fixtures.py` are synthetic. They use the shapes of RugCheck, DexScreener, and wallet_intel. They are not live NEAR accounts.
-- Launch and reputation rules were written for Solana pump.fun-style reports and wallet histories. Applied here, they score those fixture shapes. They are not a NEAR token indexer.
-- The NEP-297 event string interpolates `agent`, token ids, and `intent_hash` without JSON escaping. Fixture ids are plain. A quote or newline in those strings would break the log line. Policy enforcement does not depend on the log.
-- No dashboard and no HTTP service. The local demo is the review path (hackathon Q-012).
+- Simulated settlement. Neither `ContractSim` nor on-chain `settle` submits an intent or transfers an asset. The signed verdict gates the contract's spend record, not a token transfer.
+- The guard key is a single hot key in the guard process. Anyone who steals it can sign verdicts, though the caps, the kill switch and expiry still apply. The owner can rotate it with `set_guard_key`. There is no TEE attestation of the guard.
+- Nonces are random 63-bit values and are stored forever. Storage grows by one entry per settlement, paid from the contract account's balance.
+- The off-chain daily-cap check uses the stored `spent_in_window`. It does not apply the contract's 24-hour reset, so after the window rolls the guard can deny a settlement the contract would accept. It never allows one the contract would reject.
+- Live data covers USDC → wNEAR only (Ref pool 4512, 1Click). The meme-token reports, their pools and the wallet histories in `fixtures.py` are synthetic, in RugCheck, DexScreener and wallet_intel shapes. The launch and reputation rules were written for Solana pump.fun-style data. They are not a NEAR token indexer.
+- The price check compares a 1Click quote, which can route across venues, with one Ref pool. A large venue gap would show up as a deviation.
+- The NEP-297 event string interpolates `agent`, the token ids and `intent_hash` without JSON escaping. Policy enforcement does not depend on the log.
+- The dashboard's verdict log is a saved export, not a live guard service. The on-chain parts of the dashboard are live.
 - No mainnet deployment and no claim of production custody.
 
 ## License

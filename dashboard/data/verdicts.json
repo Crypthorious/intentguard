@@ -1,0 +1,325 @@
+{
+ "generated_at": 1794486963,
+ "network": "testnet",
+ "contract": "guard2.intentguard-5821c5.testnet",
+ "guard_public_key": "ed25519:Ho3s8kHdLEpbBrAVtRNCSMxPgHYEFhx5JqkFRtRHRBXj",
+ "data": "live",
+ "data_note": "",
+ "market": {
+  "pool": {
+   "reserve_in": 937031.637371,
+   "reserve_out": 272805.73711005226,
+   "fee": 0.003,
+   "liquidity_usd": 1874063.274742,
+   "source": "ref-finance pool 4512 (mainnet, read-only)",
+   "pool_id": 4512,
+   "fetched_at": 1794486851
+  },
+  "quote_50": {
+   "amount_out": 14.544711967189798,
+   "amount_in_usd": 49.97395,
+   "amount_out_usd": 49.888362047461,
+   "min_amount_out": "14399264847517900381053348",
+   "simulated": false,
+   "dry": true,
+   "source": "1click dry quote (mainnet solvers, dry=true, read-only)",
+   "correlation_id": "fc9ae9b3-5d15-425f-95f4-81dca473376a"
+  },
+  "meta": [
+   {
+    "token": "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+    "symbol": "USDC",
+    "name": "USDC",
+    "decimals": 6,
+    "source": "ft_metadata"
+   },
+   {
+    "token": "wrap.near",
+    "symbol": "wNEAR",
+    "name": "Wrapped NEAR fungible token",
+    "decimals": 24,
+    "source": "ft_metadata"
+   }
+  ]
+ },
+ "policy_after": {
+  "per_tx_cap": 100000000,
+  "daily_cap": 250000000,
+  "spent_in_window": 70000000,
+  "window_start_ns": 1794486859338012107,
+  "paused": false,
+  "settlements": 2
+ },
+ "result": "13/13",
+ "scenarios": [
+  {
+   "scenario": "1_safe_swap_usdc_wnear",
+   "pass": true,
+   "ts": 1794486880,
+   "kind": "guard",
+   "verdict": "ALLOW",
+   "expected": "ALLOW",
+   "reasons": [],
+   "data": "live",
+   "deviation_pct": 0.222,
+   "amount_usd": 50,
+   "token_out": "wrap.near",
+   "signed": true,
+   "settle": {
+    "agent": "bot1",
+    "amount": 50000000,
+    "remaining_daily": 200000000,
+    "settlement_id": 0,
+    "tx": "4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh"
+   },
+   "tx": "4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh"
+  },
+  {
+   "scenario": "2_safe_meme_buy",
+   "pass": true,
+   "ts": 1794486891,
+   "kind": "guard",
+   "verdict": "ALLOW",
+   "expected": "ALLOW",
+   "reasons": [],
+   "data": "fixture",
+   "deviation_pct": 0.0,
+   "amount_usd": 20,
+   "token_out": "goodmeme.pump",
+   "signed": true,
+   "settle": {
+    "agent": "bot1",
+    "amount": 20000000,
+    "remaining_daily": 180000000,
+    "settlement_id": 1,
+    "tx": "5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ"
+   },
+   "tx": "5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ"
+  },
+  {
+   "scenario": "3_over_cap",
+   "pass": true,
+   "ts": 1794486898,
+   "kind": "guard",
+   "verdict": "DENY",
+   "expected": "DENY",
+   "reasons": [
+    "risk_gate: max_notional: $150.00 > $100.00",
+    "contract: per-tx cap 150.00 > 100.00 USD"
+   ],
+   "data": "live",
+   "deviation_pct": 0.068,
+   "amount_usd": 150,
+   "token_out": "wrap.near",
+   "signed": false,
+   "settle": null
+  },
+  {
+   "scenario": "4_rug_bundled_token",
+   "pass": true,
+   "ts": 1794486905,
+   "kind": "guard",
+   "verdict": "DENY",
+   "expected": "DENY",
+   "reasons": [
+    "launch: mint authority present",
+    "launch: rugcheck risk: Bundled launch: 9 wallets bought in block 0 (danger)",
+    "launch: insiders detected (7)",
+    "launch: LP only 12.0% locked on pump_fun_amm Pool1",
+    "launch: insider among top holders",
+    "launch: top non-pool holder 22.00% >= 5.0%",
+    "launch: rug filter: top-10 non-pool holders 45.0% >= 30% (dump-wallet cluster)",
+    "launch: rug filter: creator still holds 18.00% of supply (>= 2%)",
+    "launch: rug filter: only 61 holders (< 150)",
+    "launch: rug filter: liquidity $4,000 < $12,000",
+    "price: pool liquidity 4000.0 < 12000.0 USD"
+   ],
+   "data": "fixture",
+   "deviation_pct": 0.0,
+   "amount_usd": 20,
+   "token_out": "rugmeme.pump",
+   "signed": false,
+   "settle": null
+  },
+  {
+   "scenario": "5_bad_quote_manipulated",
+   "pass": true,
+   "ts": 1794486911,
+   "kind": "guard",
+   "verdict": "DENY",
+   "expected": "DENY",
+   "reasons": [
+    "price: quote deviates -7.80% from pool-reserve fair price (> 2.0%)"
+   ],
+   "data": "live",
+   "deviation_pct": -7.796,
+   "amount_usd": 50,
+   "token_out": "wrap.near",
+   "signed": false,
+   "settle": null
+  },
+  {
+   "scenario": "6_copy_insider_wallet",
+   "pass": true,
+   "ts": 1794486918,
+   "kind": "guard",
+   "verdict": "DENY",
+   "expected": "DENY",
+   "reasons": [
+    "reputation: signal wallet insider9.near score 0/10 REJECT (< 6 or REJECT)"
+   ],
+   "data": "live",
+   "deviation_pct": 0.23,
+   "amount_usd": 30,
+   "token_out": "wrap.near",
+   "signed": false,
+   "settle": null
+  },
+  {
+   "scenario": "7_kill_switch_on",
+   "pass": true,
+   "ts": 1794486929,
+   "kind": "guard",
+   "verdict": "DENY",
+   "expected": "DENY",
+   "reasons": [
+    "contract: kill switch ON"
+   ],
+   "data": "live",
+   "deviation_pct": 0.218,
+   "amount_usd": 10,
+   "token_out": "wrap.near",
+   "signed": false,
+   "settle": null
+  },
+  {
+   "scenario": "8_bypass_kill_switch_on",
+   "pass": true,
+   "ts": 1794486933,
+   "kind": "bypass",
+   "label": "kill switch on, no verdict",
+   "expected": "ERR_KILL_SWITCH_ON",
+   "got": "ERR_KILL_SWITCH_ON",
+   "tx": "EwimhtS53YumEpCoj2DcKoMNGELaoeaX5mCAW16fmTwK",
+   "onchain_error": "ERR_KILL_SWITCH_ON"
+  },
+  {
+   "scenario": "9_bypass_no_verdict",
+   "pass": true,
+   "ts": 1794486941,
+   "kind": "bypass",
+   "label": "kill off, $10 inside every cap, no guard signature",
+   "expected": "ERR_NO_VERDICT",
+   "got": "ERR_NO_VERDICT",
+   "tx": "Ed1UkbEYpFHfFWF4YSMGh2LgVxEb9faotwbVB2e5h84k",
+   "onchain_error": "ERR_NO_VERDICT"
+  },
+  {
+   "scenario": "10_bypass_over_cap",
+   "pass": true,
+   "ts": 1794486944,
+   "kind": "bypass",
+   "label": "kill off, $500 > per-tx cap",
+   "expected": "ERR_OVER_PER_TX_CAP",
+   "got": "ERR_OVER_PER_TX_CAP",
+   "tx": "AxeBb5fhNUrtuDmGz4H2B3tYmmZGB5JsybNBJjJSozvS",
+   "onchain_error": "ERR_OVER_PER_TX_CAP"
+  },
+  {
+   "scenario": "11_replay_old_verdict",
+   "pass": true,
+   "ts": 1794486947,
+   "kind": "bypass",
+   "label": "re-sends scenario 1's signed verdict",
+   "expected": "ERR_REPLAY",
+   "got": "ERR_REPLAY",
+   "tx": "9jPWroHhDF6qLndU2SWutyj5ursEbUMESNevWnmAKBv2",
+   "onchain_error": "ERR_REPLAY"
+  },
+  {
+   "scenario": "12_tamper_token",
+   "pass": true,
+   "ts": 1794486957,
+   "kind": "bypass",
+   "label": "guard approved $10 wNEAR; agent swaps token_out to attacker.near",
+   "expected": "ERR_BAD_SIG",
+   "got": "ERR_BAD_SIG",
+   "tx": "78YnQ16aBrhW4SA4LHEUjjh9g71k8v7VcoUm1gpZUkFA",
+   "onchain_error": "ERR_BAD_SIG"
+  },
+  {
+   "scenario": "13_forged_verdict",
+   "pass": true,
+   "ts": 1794486960,
+   "kind": "bypass",
+   "label": "agent signs its own verdict with its own key",
+   "expected": "ERR_BAD_SIG",
+   "got": "ERR_BAD_SIG",
+   "tx": "96m3M6PMxvwxYkihfNvKJmKbPgzFVu9vD5xWS7tntTHi",
+   "onchain_error": "ERR_BAD_SIG"
+  }
+ ],
+ "txs": [
+  {
+   "label": "register_agent bot1",
+   "hash": "RMRhXxRacb1biPSyejLNeE5PEbQ1q3Xr6M4NqWa7p7p",
+   "ok": true
+  },
+  {
+   "label": "add_agent_key bot1",
+   "hash": "Brjf3fpuzyDbrRuUF5revGxb6mVhJJjMoLGSHaNUPUSr",
+   "ok": true
+  },
+  {
+   "label": "settle 1_safe_swap_usdc_wnear",
+   "hash": "4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh",
+   "ok": true
+  },
+  {
+   "label": "settle 2_safe_meme_buy",
+   "hash": "5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ",
+   "ok": true
+  },
+  {
+   "label": "set_kill_switch True",
+   "hash": "ebmPKAndEvLhQjxCjWUEKXYNWKheMCqMBKLJj84k6oQ",
+   "ok": true
+  },
+  {
+   "label": "8_bypass_kill_switch_on",
+   "hash": null,
+   "ok": false
+  },
+  {
+   "label": "set_kill_switch False",
+   "hash": "7PGnxF7LTmArz45Davb4SgB1vESvFwdoLfrEUA8cAqKm",
+   "ok": true
+  },
+  {
+   "label": "9_bypass_no_verdict",
+   "hash": null,
+   "ok": false
+  },
+  {
+   "label": "10_bypass_over_cap",
+   "hash": null,
+   "ok": false
+  },
+  {
+   "label": "11_replay_old_verdict",
+   "hash": null,
+   "ok": false
+  },
+  {
+   "label": "12_tamper_token",
+   "hash": null,
+   "ok": false
+  },
+  {
+   "label": "13_forged_verdict",
+   "hash": null,
+   "ok": false
+  }
+ ],
+ "failed_tx_matched": 6
+}

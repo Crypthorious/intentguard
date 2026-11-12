@@ -1,4 +1,54 @@
-# IntentGuard on NEAR testnet (deployed 2026-11-01, ~16:55 Reykjavik/UTC)
+# Rugwall (formerly IntentGuard) on NEAR testnet
+
+## v0.2: signed guard verdicts, `guard2.intentguard-5821c5.testnet` (deployed 2026-11-12, 12:34 Reykjavik/UTC)
+
+TESTNET ONLY. Faucet-funded, no real money.
+
+| what | value |
+|---|---|
+| contract account | `guard2.intentguard-5821c5.testnet` (new sub-account, funded with 3.5 testnet NEAR, because the state layout changed) |
+| owner | `intentguard-5821c5.testnet` (same as v0.1) |
+| guard verdict key (public) | `ed25519:Ho3s8kHdLEpbBrAVtRNCSMxPgHYEFhx5JqkFRtRHRBXj` (the private half is in `~/.near-credentials/testnet/agent-keys/guard-verdict.json`, chmod 600, never committed) |
+| agent | `bot1`, function-call key `ed25519:H8wkRvoyUZp6tTh49iSirbMiCM9eSoSFrcYe9rvbv4K7` (receiver is the contract, `settle` only) |
+| policy | per-tx cap 100 USDC, daily cap 250 USDC; verdict max TTL 600 s |
+| wasm | `build/intentguard-v0.2.wasm`, 174,068 B, sha256 `deb22a07f3c32bc4bae37613ad344c7a6a4d4c383d887404a021bf4f6cb67904`, code hash `FzK5Y6nKKCW1ZqiLcgSoA8h4vXQYSZCWwKV2ASx196No` (`cargo near build non-reproducible-wasm`) |
+
+Explorer: https://testnet.nearblocks.io/address/guard2.intentguard-5821c5.testnet · Dashboard: https://rugwall-near.netlify.app
+
+| step | tx | result |
+|---|---|---|
+| create `guard2` sub-account | [3ThL3shU…](https://testnet.nearblocks.io/txns/3ThL3shUP889JGDMmjC5wpLVjUDGyHXALbkmFHff9Pka) | ok |
+| **deploy + `new(owner, guard_public_key)`** | [9AsSU83V…](https://testnet.nearblocks.io/txns/9AsSU83VMprjWKq3ZH94WeJ8RAWQQEzt5N4QxM5rw1Pq) | ok |
+| register_agent bot1 | [RMRhXxRa…](https://testnet.nearblocks.io/txns/RMRhXxRacb1biPSyejLNeE5PEbQ1q3Xr6M4NqWa7p7p) | ok |
+| add_agent_key bot1 | [Brjf3fpu…](https://testnet.nearblocks.io/txns/Brjf3fpuzyDbrRuUF5revGxb6mVhJJjMoLGSHaNUPUSr) | ok |
+| 1: settle $50 USDC→wNEAR with signed verdict | [4DGxcMSr…](https://testnet.nearblocks.io/txns/4DGxcMSrynRunkmtpBy4mqkhgzsqSQtCsH3kngsko4fh) | ok, remaining 200 |
+| 2: settle $20 meme buy with signed verdict | [5FvJhZX1…](https://testnet.nearblocks.io/txns/5FvJhZX15ayLK7fdccS16FmTfsitvAtUX6x9FQubYBJ) | ok, remaining 180 |
+| set_kill_switch true | [ebmPKAnd…](https://testnet.nearblocks.io/txns/ebmPKAndEvLhQjxCjWUEKXYNWKheMCqMBKLJj84k6oQ) | ok |
+| 8: bypass, kill switch on | [EwimhtS5…](https://testnet.nearblocks.io/txns/EwimhtS53YumEpCoj2DcKoMNGELaoeaX5mCAW16fmTwK) | rejected `ERR_KILL_SWITCH_ON` |
+| set_kill_switch false | [7PGnxF7L…](https://testnet.nearblocks.io/txns/7PGnxF7LTmArz45Davb4SgB1vESvFwdoLfrEUA8cAqKm) | ok |
+| 9: bypass, $10, no verdict | [Ed1UkbEY…](https://testnet.nearblocks.io/txns/Ed1UkbEYpFHfFWF4YSMGh2LgVxEb9faotwbVB2e5h84k) | rejected `ERR_NO_VERDICT` |
+| 10: bypass, $500 | [AxeBb5fh…](https://testnet.nearblocks.io/txns/AxeBb5fhNUrtuDmGz4H2B3tYmmZGB5JsybNBJjJSozvS) | rejected `ERR_OVER_PER_TX_CAP` |
+| 11: replay scenario 1's verdict | [9jPWroHh…](https://testnet.nearblocks.io/txns/9jPWroHhDF6qLndU2SWutyj5ursEbUMESNevWnmAKBv2) | rejected `ERR_REPLAY` |
+| 12: approved token swapped to attacker.near | [78YnQ16a…](https://testnet.nearblocks.io/txns/78YnQ16aBrhW4SA4LHEUjjh9g71k8v7VcoUm1gpZUkFA) | rejected `ERR_BAD_SIG` |
+| 13: verdict forged with the agent's own key | [96m3M6PM…](https://testnet.nearblocks.io/txns/96m3M6PMxvwxYkihfNvKJmKbPgzFVu9vD5xWS7tntTHi) | rejected `ERR_BAD_SIG` |
+
+The rejected hashes come from the NearBlocks v3 API, because near-cli-rs does not print the hash of a failed call. Each error code was confirmed from the transaction outcome over RPC (`scripts/build_dashboard_data.py`). Guard DENYs (scenarios 3 to 7) never reach the chain. The live run was 13/13 as expected, and the final `get_policy(bot1)` showed 70/250 USDC spent across 2 settlements, with the kill switch off.
+
+Commands for v0.2:
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+(cd contract && cargo near build non-reproducible-wasm)
+INTENTGUARD_NETWORK=testnet INTENTGUARD_EXPORT=/tmp/verdicts.json python3 guard/demo.py   # signs testnet txs
+python3 scripts/build_dashboard_data.py /tmp/verdicts.json dashboard/data/verdicts.json
+python3 scripts/verify_testnet_code.py                                                   # read-only
+```
+
+---
+
+# v0.1 (original), `guard.intentguard-5821c5.testnet` (deployed 2026-11-01, ~16:55 Reykjavik/UTC)
+
+Unchanged and still live. It has no signed-verdict check. `smoke_testnet.sh` and `scripts/verify_testnet_code.py --v1` target it.
 
 TESTNET ONLY. Faucet-funded, no real money. Nothing on mainnet.
 

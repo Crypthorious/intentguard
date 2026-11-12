@@ -7,8 +7,13 @@ Checks (each reuses existing paper-trading code, see vendor/):
                creator bag, liquidity, two-way trading) - skipped only for allowlisted majors
   3 price      quote vs constant-product fair price from pool reserves (vendor/pool_reserve for V4 sqrtPrice)
   4 reputation vendor/wallet_score.judge + verdict on the copied signal wallet (score >= min, not REJECT)
+
+On ALLOW, if ctx carries a `signer` (verdict.GuardSigner) and a `contract_id`, the guard signs an ed25519 verdict
+over (contract, agent, intent hash, amount, token_in, token_out, expiry, nonce). The contract refuses any `settle`
+without a valid, fresh, unused verdict, so an agent that skips the guard cannot settle even inside its caps.
+DENY verdicts are never signed.
 """
-import json, os, time, traceback
+import hashlib, json, os, time, traceback
 from .vendor import risk_gate, launch_safety, wallet_score, pool_reserve
 
 DEFAULT_CFG = {
@@ -108,6 +113,18 @@ def check_reputation(p, cfg):
     return R, {"score": s, "verdict": v, "why": why}
 
 
+def amount_raw(p):
+    """Settlement amount in the quote asset's smallest unit (USDC, 6 dp), as the contract sees it."""
+    return int(round(float(p["amount_usd"]) * 1e6))
+
+
+def intent_hash(p):
+    """sha256 over the fields the agent proposed and the guard checked (the quote included)."""
+    core = {k: p.get(k) for k in ("agent", "token_in", "token_out", "amount_in", "amount_usd")}
+    core["quote_amount_out"] = (p.get("quote") or {}).get("amount_out")
+    return hashlib.sha256(json.dumps(core, sort_keys=True, default=str).encode()).hexdigest()
+
+
 def evaluate(p, ctx, cfg=None, audit_path=None):
     cfg = cfg or DEFAULT_CFG
     now = ctx.get("now", time.time())
@@ -123,6 +140,18 @@ def evaluate(p, ctx, cfg=None, audit_path=None):
         out["trace"] = traceback.format_exc(limit=3)
     out["allow"] = not out["reasons"]
     out["verdict"] = "ALLOW" if out["allow"] else "DENY"
+    if out["allow"] and ctx.get("signer") is not None and ctx.get("contract_id"):
+        try:
+            out["intent_hash"] = intent_hash(p)
+            out["amount_raw"] = amount_raw(p)
+            out["signed_verdict"] = ctx["signer"].sign(ctx["contract_id"], p["agent"], out["intent_hash"], out["amount_raw"],
+                                                       p["token_in"], p["token_out"], now_ns=ctx.get("verdict_now_ns"),
+                                                       ttl_ns=ctx.get("verdict_ttl_ns", 120 * 10**9))
+            out["guard_public_key"] = ctx["signer"].public_key
+        except Exception as e:  # fail closed: no signature -> treated as DENY
+            out["allow"], out["verdict"] = False, "DENY"
+            out["reasons"].append(f"guard_error (fail-closed): could not sign verdict: {e!r}")
+    out["data_sources"] = {k: (p.get(k) or {}).get("source") for k in ("quote", "pool") if isinstance(p.get(k), dict)}
     if audit_path:
         os.makedirs(os.path.dirname(audit_path) or ".", exist_ok=True)
         with open(audit_path, "a") as f:

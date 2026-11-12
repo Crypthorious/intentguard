@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rugwall (formerly IntentGuard) · live NEAR testnet dashboard</title>
+<meta name="description" content="Rugwall: rug, price and copy-trade firewall for NEAR trading agents. Read-only dashboard of the live testnet contract.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="mark"></span><b>Rugwall</b> <span class="muted">(formerly IntentGuard)</span></div>
+    <div class="badges"><span class="badge teal">NEAR testnet</span><span class="badge">read-only</span><span class="badge">no wallet connect</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Rug, price and copy-trade firewall for NEAR trading agents</h1>
+    <p class="lead">An AI trading agent proposes a swap. Rugwall checks it for a rug-shaped token, a quote that is off the live pool price, a copied wallet with an insider track record, and the human's spending caps. Only then does it <b>sign</b> an ed25519 verdict. The NEAR contract stores the guard's public key and refuses any <code>settle</code> without a fresh, unused signature, so an agent that skips the guard can't settle, even inside its caps.</p>
+    <p class="small muted">Everything on this page is read live from public NEAR testnet RPC and the public NearBlocks API, except the guard verdict log, which is the saved output of the last live testnet demo run. This page never asks for a wallet, a key or any personal data.</p>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <div class="card-h"><h2>Live contract policy</h2><button id="refresh" type="button">Refresh</button></div>
+      <p class="small muted">From <code id="rpc-name"></code> · contract <a id="contract-link" target="_blank" rel="noopener"></a></p>
+      <dl class="kv" id="policy"><dt>Loading…</dt><dd></dd></dl>
+      <div id="policy-err" class="err" hidden></div>
+    </div>
+    <div class="card">
+      <h2>Demo video</h2>
+      <video id="video" controls preload="metadata" playsinline poster="poster.png">
+        <source src="rugwall-demo.mp4" type="video/mp4">
+      </video>
+      <p class="small muted">The real <code>INTENTGUARD_NETWORK=testnet python3 guard/demo.py</code> run against this contract, recorded with live 1Click dry quotes and Ref Finance pool reserves.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>On-chain activity</h2><span class="small muted" id="tx-meta"></span></div>
+    <p class="small muted">The latest transactions on the contract account, from NearBlocks. A rejected <code>settle</code> shows the contract's own panic code, read from the transaction outcome over RPC.</p>
+    <div class="tablewrap"><table id="txs"><thead><tr><th>Time (UTC)</th><th>Method</th><th>Signer</th><th>Result</th><th>Tx</th></tr></thead><tbody><tr><td colspan="5">Loading…</td></tr></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Guard verdict log</h2><span class="small muted" id="log-meta"></span></div>
+    <p class="small muted">The 13 scenarios from the last live testnet run. A guard DENY never reaches the chain. An ALLOW carries a signed verdict and settles. Scenarios 8 to 13 are a compromised agent calling the contract directly.</p>
+    <div id="market" class="market"></div>
+    <div class="tablewrap"><table id="log"><thead><tr><th>#</th><th>Scenario</th><th>Guard</th><th>Contract</th><th>Why</th><th>Data</th><th>Tx</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2>Try it: do X → see Y</h2>
+    <ol class="steps">
+      <li><b>Do:</b> look at <i>Live contract policy</i> above. <b>See:</b> <code>guard_public_key</code> set to the guard's ed25519 key, per-tx cap 100 USDC and daily cap 250 USDC for agent <code>bot1</code>, and the kill switch off.</li>
+      <li><b>Do:</b> open the <i>On-chain activity</i> table. <b>See:</b> green <code>settle</code> rows (the guard signed them) and red rows with <code>ERR_NO_VERDICT</code>, <code>ERR_REPLAY</code>, <code>ERR_BAD_SIG</code>, <code>ERR_KILL_SWITCH_ON</code> and <code>ERR_OVER_PER_TX_CAP</code>. Click any hash to check it on NearBlocks.</li>
+      <li><b>Do:</b> find scenario <code>9_bypass_no_verdict</code> in the verdict log. <b>See:</b> a $10 settle, inside every cap, rejected on-chain with <code>ERR_NO_VERDICT</code>, because the agent skipped the guard.</li>
+      <li><b>Do:</b> clone the repo and run <code>./run.sh</code>. <b>See:</b> 27 contract tests, 53 guard tests and <code>RESULT: 13/13 scenarios as expected</code>. It works offline too: the demo falls back to fixtures and says so.</li>
+      <li><b>Do:</b> run <code>python3 scripts/verify_testnet_code.py</code>. <b>See:</b> the committed wasm is byte-identical to the code on this contract.</li>
+    </ol>
+    <p class="small">Repo: <a href="https://github.com/Crypthorious/intentguard" target="_blank" rel="noopener">github.com/Crypthorious/intentguard</a> · Contract: <a href="https://testnet.nearblocks.io/address/guard2.intentguard-5821c5.testnet" target="_blank" rel="noopener">guard2.intentguard-5821c5.testnet</a></p>
+  </section>
+
+  <section class="card">
+    <h2>What is real here</h2>
+    <ul class="small">
+      <li><b>Real, on testnet:</b> the Rust contract, its caps, the kill switch, the function-call key limited to <code>settle</code>, and on-chain ed25519 verification of every guard verdict, with replay and expiry protection.</li>
+      <li><b>Real, read-only, mainnet data:</b> the 1Click quote (<code>dry: true</code>, so no deposit address and no funds), Ref Finance pool 4512 reserves, and the <code>ft_metadata</code> of USDC and wNEAR.</li>
+      <li><b>Fixtures:</b> the two meme tokens (<code>goodmeme.pump</code>, <code>rugmeme.pump</code>) and the copied-wallet histories.</li>
+      <li><b>Not done:</b> <code>settle</code> records the spend and emits an event. It does not forward to <code>intents.near</code> or move tokens. No mainnet, no real money.</li>
+    </ul>
+  </section>
+</main>
+<footer class="wrap small muted">Built at NEAR HACKATHON · Testnet only · Read-only page, no forms, no wallet connect.</footer>
+<script src="app.js"></script>
+</body>
+</html>

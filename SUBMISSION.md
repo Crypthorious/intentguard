@@ -16,13 +16,14 @@ Do not commit a filled payload. It would contain the contact email. Keep that JS
 
 | Step | State |
 |---|---|
-| Product is a NEAR contract plus a local guard, track `security` | Done in this repo |
+| Product is a NEAR contract with on-chain signed-verdict checks plus a guard, track `security` | Done in this repo (v0.2 on testnet `guard2.intentguard-5821c5.testnet`) |
 | `LICENSE` present (MIT, Q-014) | Done |
 | Libraries, prior code, and AI assistance listed in the README (Q-005) | Done |
 | Simulated settlement separated from the read-only `dry: true` quote | Done in the README, the demo output, and this file |
 | Default checks run without new keys | `./run.sh` and `python3 scripts/verify_testnet_code.py` |
 | Reproducible wasm metadata | In `contract/Cargo.toml`. Double-build result in `DEPLOY_TESTNET.md` |
-| Demo video of the real program | Record from the script below. Screenshots alone do not satisfy Q-012 |
+| Demo video of the real program | `demo/intentguard-demo.mp4`: the live testnet run (13/13), rendered 2026-11-12 |
+| Hosted demo (Q-012 plus) | https://rugwall-near.netlify.app, read-only. Keep it up until at least 2026-11-18, ideally 2026-11-25 |
 | Repository public | Not done. Judges cannot open a private repo. A person has to change visibility. This work does not |
 | Demo post published on X | Not done. Drafts are below. A person has to post and attach the video |
 | Submission POST | Not done. Requires the fields marked "owner" and an explicit yes on the exact JSON |
@@ -34,7 +35,7 @@ Send exactly these fields. `website` is a spam trap and must be omitted. `consen
 | Field | Rule | Value for this project |
 |---|---|---|
 | requestId | UUID, reused on retries | `05235279-010a-42cd-826e-db49abaf0d55` |
-| projectName | 2-80 characters | Proposed: `IntentGuard`. Owner confirms or replaces it |
+| projectName | 2-80 characters | Proposed: `Rugwall`. Two other entries are already called IntentGuard. Alternatives: `Tradewarden`, `Copycatch`. The owner confirms one |
 | leadName | 2-80 characters | Owner must provide. The git author handle is not a legal name and is not filled in here |
 | email | valid email, max 160, at most 2 submissions | Owner must provide. `noreply@example.com` on the initial commit is a placeholder and must not be sent |
 | size | one of `1`, `2 - 4`, `4 - 6`, `6 - 8`, `8+` | Owner must choose |
@@ -53,51 +54,52 @@ Other owner facts, not API fields:
 
 ## Draft idea
 
-AI trading agents fail open: a prompt injection can make the agent pay a bundled token, accept a manipulated quote, or copy a wallet that only looks profitable. IntentGuard is a policy firewall for that decision. Before a swap, an off-chain guard runs four fail-closed checks: a spending and kill-switch risk gate, launch safety (authorities, LP lock, insiders, holder concentration, liquidity), a price check against pool reserves, and a reputation score on the copied wallet. A NEAR testnet contract then enforces the per-transaction cap, the rolling 24-hour cap, and a human-owned kill switch. The agent holds a function-call access key that can call only settle on that contract, so it cannot raise caps, clear the kill switch, or transfer NEAR. NEAR is the control plane for those limits. This prototype does not settle on NEAR Intents: settle records the approved amount and emits an event, and it does not call intents.near or move tokens. Quotes in the default demo are simulated. A separate read-only command can request a 1Click quote with dry set to true, which returns no deposit and moves no funds.
+1755 characters. The owner edits it before sending.
+
+AI trading agents fail open: a prompt injection, a bundled rug token, a tampered solver quote or a copied insider wallet can drain a treasury in one transaction, and an off-chain checker does not help if a compromised agent simply skips it. Rugwall (formerly IntentGuard) is a rug, price and copy-trade firewall for NEAR trading agents. Before a swap, the guard runs four fail-closed checks: launch safety (mint and freeze authority, bundles, insiders, holder concentration, LP lock, liquidity), price sanity (a real NEAR Intents 1Click dry quote against live Ref Finance pool reserves), copied-wallet reputation, and the human's caps and kill switch read from the contract. Only an ALLOW is signed: an ed25519 verdict over the contract, agent, intent hash, amount, tokens, expiry and nonce. The NEAR contract stores the guard's public key and verifies the signature on-chain in settle. It rejects missing, expired, replayed or tampered verdicts, and it still enforces the per-transaction cap, the rolling 24-hour cap and the kill switch. The agent holds only a function-call access key limited to settle, so it cannot raise caps, swap the guard key or move NEAR. On NEAR testnet (guard2.intentguard-5821c5.testnet) the demo runs 13/13. Two signed swaps settle, five bad trades are denied, and six direct-to-contract attacks fail on-chain with ERR_KILL_SWITCH_ON, ERR_NO_VERDICT, ERR_OVER_PER_TX_CAP, ERR_REPLAY and ERR_BAD_SIG. A read-only dashboard (https://rugwall-near.netlify.app) shows the live policy, the guard key and every transaction with its on-chain result. A small MCP tool lets any agent ask Rugwall before it trades. Limits: settle records the spend and emits an event. It does not yet forward to intents.near or move tokens. Testnet only.
 
 ## Demo script
 
-Record the running program. Do not use slides. About two minutes.
+The rendered video is `demo/intentguard-demo.mp4`. It shows the real `INTENTGUARD_NETWORK=testnet python3 guard/demo.py` run from 2026-11-12, then the live dashboard. To re-record by hand:
 
-1. Open a terminal in a fresh clone with dependencies installed (`README.md`, Fresh clone).
-2. Run `python3 guard/demo.py`.
-3. Leave the scrollback visible long enough to read three moments: `1_safe_swap_usdc_wnear` ALLOW, `4_rug_bundled_token` DENY with the rug reasons, and both `8_bypass_guard` rejections (`ERR_KILL_SWITCH_ON`, then `ERR_OVER_PER_TX_CAP`).
-4. Leave the two lines above `RESULT: 9/9` visible. They say settlement is a simulated ledger and the quotes are fixtures.
-5. Run `python3 scripts/verify_testnet_code.py`. The result to show is `bytes_equal True` and `RESULT OK`. Say that this is a public read of testnet code, not a new payment.
-6. Optional, if the network is up: `python3 guard/live_quote_check.py`. Say that the line is a 1Click `dry: true` quote and that no swap was sent.
-7. Stop. Do not open credential files, do not run `smoke_testnet.sh`, and do not sign anything in the video.
+1. Open https://rugwall-near.netlify.app and show the guard key, the caps and the rejected `settle` rows.
+2. In a fresh clone, run `python3 guard/demo.py`. Hold on the `DATA: live` line, on `1_safe_swap_usdc_wnear` (ALLOW, signed), on `4_rug_bundled_token` (the rug reasons), and on `9_bypass_no_verdict` (`ERR_NO_VERDICT`).
+3. Run `python3 scripts/verify_testnet_code.py` and show `bytes_equal True`, `RESULT OK`.
+4. Don't open credential files or show `~/.near-credentials`.
 
 ## Draft X post
 
-The human posts this and attaches the video. Required words are in both drafts: built at NEAR HACKATHON, `@NEARProtocol`, `#NEARHackathon`.
+The human posts this and attaches the video. Both drafts include the required words: built at NEAR HACKATHON, `@NEARProtocol` and `#NEARHackathon`. Links count as 23 characters on X.
 
-Preferred draft (563 characters; needs a post length that allows it):
+Preferred draft (539 characters, so it needs an account that allows long posts):
 
 ```
-An AI agent with a wallet will pay the wrong thing once a prompt is injected. IntentGuard denies the swap first: caps, a rug and quote check, and a NEAR function-call key that can only call settle.
+Your AI trading agent can be talked into buying a rug, taking a rigged quote or copying an insider wallet.
 
-Built at NEAR HACKATHON. The caps and the kill switch are on a NEAR contract, so the agent cannot raise its own limit. Settlement through NEAR Intents is still simulated; the guard and the testnet caps are what you can run.
+Rugwall checks every swap and signs only the safe ones. The NEAR contract verifies that signature on-chain, so an agent that skips the check can't settle, even inside its caps.
 
-https://github.com/Crypthorious/intentguard
-What should a human still have to approve before an agent spends?
+Built at NEAR HACKATHON. Testnet demo: 13/13, with real 1Click quotes and Ref Finance pool prices.
+
+Live dashboard: https://rugwall-near.netlify.app
+Code: https://github.com/Crypthorious/intentguard
+
+What would you make an agent prove before it spends?
 
 @NEARProtocol #NEARHackathon
 ```
 
-Fallback, 257 characters, inside the 280-character limit:
+Short draft (242 characters, within the 280 limit):
 
 ```
-AI agents pay the wrong token when a prompt is injected. IntentGuard blocks it: NEAR caps and a key that can only call settle. Built at NEAR HACKATHON. Intents settlement is simulated. https://github.com/Crypthorious/intentguard @NEARProtocol #NEARHackathon
+AI trading agents get tricked into rugs and rigged quotes. Rugwall checks each swap and signs only the safe ones. The NEAR contract rejects anything unsigned. Built at NEAR HACKATHON. Live: https://rugwall-near.netlify.app @NEARProtocol #NEARHackathon
 ```
 
-Optional extra tags from the rules, if the owner wants them: `@NearLegion` `@NearBuilders`.
+Optional extra tags from the rules: `@NearLegion` `@NearBuilders`.
 
 ## What still needs a person
 
-1. The vendored modules have no identified third-party license. MIT covers them only if you wrote them. If you copied any of those files from someone else, name the file and remove or replace it before the repository is public. The hackathon contact sentence does not license another person's code.
-2. Make the GitHub repository public, without force-push.
-3. Record or accept the demo video and publish one of the drafts with the video attached.
-4. Provide lead name, email, and team size.
-5. Confirm project name `IntentGuard`, track `["security"]`, payout account `crypthorious.near`, and the idea text.
-6. Say the consent sentence.
-7. Review the exact JSON and say yes. Only then POST it to `https://nearhackathon.com/api/applications` with the reserved `requestId`.
+1. Make the GitHub repository public, without a force-push.
+2. Confirm the project name (`Rugwall` is proposed), then post one of the drafts with the video attached.
+3. Confirm the lead name, email, team size, tracks (`security` is proposed; `defi` and `agents` are optional), and payout account `crypthorious.near`.
+4. Say the consent sentence.
+5. Review the exact JSON and say yes. Only then POST it to `https://nearhackathon.com/api/applications` with the reserved `requestId`.
